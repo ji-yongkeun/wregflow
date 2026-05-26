@@ -48,3 +48,30 @@ dist-ssr/
 # OS
 .DS_Store
 Thumbs.db
+
+# Backend
+backend/.env
+backend/.env.* 
+backend/__pycache__/
+backend/__pycache__/*.pyc
+backend/venv/
+backend/.venv/
+
+# Frontend
+frontend/.env 
+frontend/dist/
+frontend/node_modules/
+frontend/.vite/
+ 
+
+# DB & Logs
+*.db
+*.sqlite
+*.log
+*.bak
+*.dump
+*.sql
+
+# Uploads & Backups & Docs 
+backup/
+db_backup/
