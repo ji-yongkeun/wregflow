@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3000,             // 로컬 개발 환경 포트 8081로 설정
+    port: 8090,             // 로컬 개발 환경 포트 8090으로 설정
     strictPort: false,       // 포트 고정
     proxy: {
       '/api': {

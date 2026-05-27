@@ -17,9 +17,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "http://localhost:8090",  # React 개발 서버 포트 (8090)
         "http://localhost:8081",  # React 로컬 개발 서버 포트 (8081)
         "http://localhost:5173",  # React 기본 개발 서버 포트
-        "http://localhost:3000",  # 기타 로컬 포트
         "http://49.50.132.167",   # 네이버 클라우드 운영 서버 IP
     ],
     allow_credentials=True,

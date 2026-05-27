@@ -31,7 +31,7 @@ npm install
 npm run dev
 ```
 
-브라우저: http://localhost:8081
+브라우저: http://localhost:8090
 
 ## 📁 프로젝트 구조
 
