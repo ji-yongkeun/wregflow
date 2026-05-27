@@ -1,12 +1,14 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Header
+from fastapi import APIRouter, UploadFile, File, Form, Query, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 from pathlib import Path
 import shutil
+import os
 from app.db.database import get_db
 from app.services.text_extractor import extract_text
 from app.services.claude_analyzer import analyze_regulation
 from app.services.version_service import save_version
 from app.services.permission_service import can_upload, can_analyze
+from app.models.analysis import RegulationFile, AnalysisResult
 
 router = APIRouter(prefix="/api/regulations", tags=["regulations"])
 
@@ -16,6 +18,8 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 @router.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
+    edition: int = Form(None),  # 사용자가 입력한 edition
+    edition_name: str = Form(None),  # 사용자가 입력한 edition_name
     x_user_id: str = Header(None),
     db: Session = Depends(get_db)
 ):
@@ -25,28 +29,83 @@ async def upload_file(
     if not can_upload(db, x_user_id):
         raise HTTPException(status_code=403, detail="파일 업로드 권한이 없습니다")
 
-    try:
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="파일이 선택되지 않았습니다.")
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="파일이 선택되지 않았습니다.")
         
-        file_path = UPLOAD_DIR / file.filename
+    ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "txt"}
+    file_ext = file.filename.rsplit(".", 1)[-1].lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="지원하지 않는 파일 형식입니다")
+
+    try:
+        # 파일명에 edition 정보 포함 (예: "1_여신공통업무_파일명.docx")
+        if edition and edition_name:
+            filename = f"{edition}_{edition_name}_{file.filename}"
+        else:
+            filename = file.filename
+            
+        file_path = UPLOAD_DIR / filename
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
         return {
             "status": "success",
             "message": "파일 업로드 성공",
-            "filename": file.filename,
-            "file_path": str(file_path)
+            "filename": filename,
+            "original_name": file.filename,
+            "edition": edition,
+            "edition_name": edition_name
         }
-    except HTTPException as he:
-        raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"파일 저장 중 오류가 발생했습니다: {str(e)}")
+
+def extract_edition_from_filename(file_id: str) -> tuple:
+    """
+    파일명에서 편(edition)과 카테고리 추출
+    예: "01_여신공통업무.docx" → (1, "여신공통")
+    """
+    file_id_clean = file_id.replace(".docx", "").replace(".txt", "").replace(".pdf", "").replace(".doc", "")
+    
+    edition_map = {
+        "01": (1, "여신공통"),
+        "1편": (1, "여신공통"),
+        "02": (2, "가계여신"),
+        "2편": (2, "가계여신"),
+        "1장": (2, "가계여신"),
+        "2장": (2, "가계여신"),
+        "3장": (2, "가계여신"),
+        "4장": (2, "가계여신"),
+        "5장": (2, "가계여신"),
+        "6장": (2, "가계여신"),
+        "03": (3, "가계여신_과목별"),
+        "3편": (3, "가계여신_과목별"),
+        "04": (4, "기업여신"),
+        "4편": (4, "기업여신"),
+        "05": (5, "기업여신_과목별"),
+        "5편": (5, "기업여신_과목별"),
+        "06": (6, "외환여신"),
+        "6편": (6, "외환여신"),
+        "07": (7, "여신정리"),
+        "7편": (7, "여신정리"),
+    }
+    
+    # 파일명 첫 2글자로 edition 확인
+    prefix = file_id_clean[:2]
+    
+    if prefix in edition_map:
+        return edition_map[prefix]
+        
+    # 기존 가계대출 관련 파일("1장 가계대출총칙" 등)을 위한 예외 매핑
+    if any(keyword in file_id_clean for keyword in ["가계대출", "대출상담", "약정서"]):
+        return (2, "가계여신")
+    
+    return (None, None)
 
 @router.post("/analyze")
 async def analyze_regulation_file(
     file_id: str,
+    edition: int = Query(None),
+    edition_name: str = Query(None),
     x_user_id: str = Header(None),
     db: Session = Depends(get_db)
 ):
@@ -66,10 +125,10 @@ async def analyze_regulation_file(
         file_path = UPLOAD_DIR / file_id
         if not file_path.exists():
             raise FileNotFoundError()
-            
+
         text = extract_text(str(file_path))
         analysis = analyze_regulation(text)
-        
+
         # 버전으로 저장
         version = save_version(
             db=db,
@@ -77,12 +136,60 @@ async def analyze_regulation_file(
             analysis_data=analysis,
             file_content=text
         )
-        
+
+        # 안정적인 edition 추출
+        if edition is None:
+            edition, file_category = extract_edition_from_filename(file_id)
+        else:
+            file_category = edition_name
+
+        saved = False
+        try:
+            existing_file = db.query(RegulationFile).filter(
+                RegulationFile.file_id == file_id
+            ).first()
+
+            if not existing_file:
+                file_size = 0
+                try:
+                    file_size = os.path.getsize(str(file_path))
+                except Exception:
+                    pass
+                db.add(RegulationFile(
+                    file_id=file_id,
+                    file_name=file_id.replace("_", " "),
+                    file_size=file_size,
+                    edition=edition,
+                    file_category=file_category
+                ))
+                db.commit()
+
+            db.add(AnalysisResult(
+                file_id=file_id,
+                edition=edition,  # 중요: edition 반드시 저장
+                process_name=analysis.get("process_name", ""),
+                description=analysis.get("description", ""),
+                swim_lanes=analysis.get("swim_lanes", []),
+                raci=analysis.get("raci", []),
+                decisions=analysis.get("decisions", []),
+                swim_lanes_count=len(analysis.get("swim_lanes", [])),
+                raci_count=len(analysis.get("raci", [])),
+                decisions_count=len(analysis.get("decisions", []))
+            ))
+            db.commit()
+            saved = True
+        except Exception as save_err:
+            db.rollback()
+            print(f"분석 결과 저장 실패: {save_err}")
+
         return {
             "status": "success",
             "file_id": file_id,
             "analysis": analysis,
-            "version": version.version
+            "version": version.version,
+            "saved": saved,
+            "edition": edition,  # 응답에 포함
+            "edition_name": file_category
         }
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")

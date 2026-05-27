@@ -9,6 +9,9 @@ from app.routes.regulations import router as regulations_router
 from app.routes.shares import router as shares_router
 from app.routes.versions import router as versions_router
 from app.routes.permissions import router as permissions_router
+from app.routes.analysis import router as analysis_router
+from app.routes.integration import router as integration_router
+from app.routes.download import router as download_router
 
 # 애플리케이션 시작 시 데이터베이스 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -40,6 +43,33 @@ app = FastAPI(
     version="0.1.0"
 )
 
+@app.on_event("startup")
+async def startup_event():
+    # 기존 분석 결과에서 edition 값이 NULL인 경우 업데이트
+    from app.db.database import SessionLocal
+    from app.models.analysis import AnalysisResult
+    from app.routes.regulations import extract_edition_from_filename
+    
+    db = SessionLocal()
+    try:
+        # edition이 NULL인 분석 결과 찾기
+        null_editions = db.query(AnalysisResult).filter(
+            AnalysisResult.edition == None
+        ).all()
+        
+        for result in null_editions:
+            edition, _ = extract_edition_from_filename(result.file_id)
+            result.edition = edition
+            db.add(result)
+        
+        if null_editions:
+            db.commit()
+            print(f"✅ {len(null_editions)}개 분석의 edition 값 업데이트 완료")
+    except Exception as e:
+        print(f"❌ Startup 이벤트 오류: {str(e)}")
+    finally:
+        db.close()
+
 # CORS 미들웨어 설정 (프론트엔드 포트 8081 허용 추가)
 app.add_middleware(
     CORSMiddleware,
@@ -59,6 +89,9 @@ app.include_router(regulations_router)
 app.include_router(shares_router)
 app.include_router(versions_router)
 app.include_router(permissions_router)
+app.include_router(analysis_router)
+app.include_router(integration_router)
+app.include_router(download_router)
 
 # 헬스 체크 엔드포인트
 @app.get("/health")

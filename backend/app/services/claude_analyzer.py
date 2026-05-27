@@ -1,92 +1,298 @@
 from anthropic import Anthropic
 from app.config import settings
 import json
+import time
 
-# Anthropic 클라이언트 초기화 (settings.CLAUDE_API_KEY 사용)
 client = Anthropic(api_key=settings.CLAUDE_API_KEY)
 
-def analyze_regulation(regulation_text: str) -> dict:
-    if not regulation_text or not regulation_text.strip():
-        raise ValueError("분석할 규정 텍스트가 비어 있습니다.")
-        
-    system_prompt = (
-        "당신은 규정 분석 전문가입니다.\n"
-        "주어진 규정을 분석하여 다음을 추출합니다:\n"
-        "1. 프로세스 이름\n"
-        "2. Swim Lane (부서/역할별 단계)\n"
-        "3. 의사결정 포인트\n"
-        "4. RACI 매트릭스 (책임 담당자)\n\n"
-        "JSON 형식으로만 응답하세요."
-    )
-    
-    user_message = f"""다음 규정을 분석해주세요:
+# 분당 30,000 토큰 한도에 맞게: 한국어 1자 ≈ 0.6~1토큰, 20,000자 ≈ 12,000~20,000토큰
+MAX_CHARS_PER_CHUNK = 20000
+MAX_RETRIES = 4
 
-{regulation_text}
+SYSTEM_PROMPT = (
+    "당신은 규정 분석 전문가입니다.\n"
+    "주어진 규정을 분석하여 다음을 추출합니다:\n"
+    "1. 프로세스 이름\n"
+    "2. Swim Lane (부서/역할별 단계)\n"
+    "3. 의사결정 포인트\n"
+    "4. RACI 매트릭스 (책임 담당자)\n\n"
+    "JSON 형식으로만 응답하세요."
+)
 
-JSON 응답 형식:
-{{
+JSON_FORMAT = """
+{
   "process_name": "프로세스 이름",
   "description": "간단한 설명",
   "swim_lanes": [
-    {{
+    {
       "role": "부서/역할명",
       "steps": [
-        {{"order": 1, "action": "액션 설명", "decision": false}},
-        {{"order": 2, "action": "의사결정점", "decision": true}}
+        {"order": 1, "action": "액션 설명", "decision": false},
+        {"order": 2, "action": "의사결정점", "decision": true}
       ]
-    }}
+    }
   ],
   "decisions": [
-    {{
+    {
       "id": 1,
       "question": "의사결정 질문",
       "yes_outcome": "Yes 결과",
       "no_outcome": "No 결과"
-    }}
+    }
   ],
   "raci": [
-    {{
+    {
       "task": "작업명",
       "responsible": "담당",
       "accountable": "책임",
       "consulted": "상의",
       "informed": "보고"
-    }}
+    }
   ]
-}}"""
+}"""
+
+
+def _call_claude_with_retry(text: str) -> dict:
+    user_message = f"다음 규정을 분석해주세요:\n\n{text}\n\nJSON 응답 형식:{JSON_FORMAT}"
+    delay = 60
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4000,
+                system=SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_message}]
+            )
+            content_text = response.content[0].text.strip()
+            if content_text.startswith("```json"):
+                content_text = content_text[7:]
+            if content_text.startswith("```"):
+                content_text = content_text[3:]
+            if content_text.endswith("```"):
+                content_text = content_text[:-3]
+            return json.loads(content_text.strip())
+
+        except Exception as e:
+            err_str = str(e)
+            is_rate_limit = "429" in err_str or "rate_limit" in err_str
+            if is_rate_limit and attempt < MAX_RETRIES - 1:
+                print(f"[Rate Limit] {attempt+1}번 시도 실패. {delay}초 후 재시도...")
+                time.sleep(delay)
+                delay *= 2
+            else:
+                raise
+
+
+def _merge_results(results: list) -> dict:
+    if not results:
+        return {}
+    merged = {
+        "process_name": results[0].get("process_name", ""),
+        "description": results[0].get("description", ""),
+        "swim_lanes": [],
+        "decisions": [],
+        "raci": []
+    }
+    role_map = {}
+    decision_offset = 0
+    for result in results:
+        for lane in result.get("swim_lanes", []):
+            role = lane.get("role", "")
+            if role not in role_map:
+                role_map[role] = []
+            role_map[role].extend(lane.get("steps", []))
+        for decision in result.get("decisions", []):
+            d = dict(decision)
+            d["id"] = decision_offset + d.get("id", 0)
+            merged["decisions"].append(d)
+        decision_offset += len(result.get("decisions", []))
+        merged["raci"].extend(result.get("raci", []))
+
+    for role, steps in role_map.items():
+        for i, step in enumerate(steps, start=1):
+            step["order"] = i
+        merged["swim_lanes"].append({"role": role, "steps": steps})
+
+    return merged
+
+
+def analyze_regulation(regulation_text: str) -> dict:
+    if not regulation_text or not regulation_text.strip():
+        raise ValueError("분석할 규정 텍스트가 비어 있습니다.")
+
+    text = regulation_text.strip()
+    chunks = []
+    for i in range(0, len(text), MAX_CHARS_PER_CHUNK):
+        chunk = text[i:i + MAX_CHARS_PER_CHUNK]
+        if chunk.strip():
+            chunks.append(chunk)
 
     try:
-        response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=4000,
-            system=system_prompt,
-            messages=[
-                {"role": "user", "content": user_message}
-            ]
-        )
-        
-        content_text = response.content[0].text
-        
-        try:
-            # 마크다운 ```json ... ``` 블록 제거 전처리
-            cleaned_text = content_text.strip()
-            if cleaned_text.startswith("```json"):
-                cleaned_text = cleaned_text[7:]
-            if cleaned_text.endswith("```"):
-                cleaned_text = cleaned_text[:-3]
-            cleaned_text = cleaned_text.strip()
-            
-            return json.loads(cleaned_text)
-            
-        except json.JSONDecodeError:
-            # JSON 파싱 에러 시 원본 텍스트 응답을 반환하면서도 UI 깨짐을 예방하기 위한 래핑 구조
-            return {
-                "process_name": "규정 분석 결과 (텍스트)",
-                "description": content_text,
-                "swim_lanes": [],
-                "decisions": [],
-                "raci": []
-            }
-            
+        results = []
+        for idx, chunk in enumerate(chunks):
+            # 첫 번째 이후 청크는 레이트 리밋 방지를 위해 65초 대기
+            if idx > 0:
+                print(f"[Chunk {idx+1}/{len(chunks)}] 레이트 리밋 방지 대기 중 (65초)...")
+                time.sleep(65)
+            try:
+                result = _call_claude_with_retry(chunk)
+                results.append(result)
+            except json.JSONDecodeError as e:
+                results.append({
+                    "process_name": f"청크 {idx+1} 분석 결과",
+                    "description": f"JSON 파싱 실패: {str(e)}",
+                    "swim_lanes": [],
+                    "decisions": [],
+                    "raci": []
+                })
+
+        if len(results) == 1:
+            return results[0]
+        return _merge_results(results)
+
     except Exception as e:
         raise Exception(f"Claude API 호출 중 오류 발생: {str(e)}")
+
+
+async def analyze_integration(analyses_data: list, integrated_name: str) -> dict:
+    """
+    여러 분석 결과를 통합하여 전체 프로세스 맵 생성
+    """
+    import re
+    
+    # 분석 데이터를 프롬프트에 포함
+    analyses_summary = ""
+    for idx, analysis in enumerate(analyses_data, 1):
+        analyses_summary += f"\n## {analysis.get('edition', idx)}편: {analysis.get('process_name', '')}\n"
+        analyses_summary += f"설명: {analysis.get('description', '')}\n"
+        
+        analyses_summary += "\n부서별 역할 (Swim Lanes):\n"
+        swim_lanes = analysis.get('swim_lanes', [])
+        if swim_lanes:
+            for lane in swim_lanes:
+                steps_desc = []
+                for s in lane.get('steps', []):
+                    if isinstance(s, dict):
+                        steps_desc.append(s.get('action', ''))
+                    else:
+                        steps_desc.append(str(s))
+                analyses_summary += f"- {lane.get('role', '')}: {', '.join(steps_desc)}\n"
+        
+        analyses_summary += "\nRACI 매트릭스:\n"
+        raci = analysis.get('raci', [])
+        if raci:
+            for item in raci:
+                analyses_summary += f"- {item.get('task', '')}: R={item.get('responsible', '')}, A={item.get('accountable', '')}\n"
+        analyses_summary += "\n"
+    
+    prompt = f"""
+여러 여신업무 규정 분석 결과를 통합하여 전체 프로세스를 분석해주세요.
+
+통합 분석명: {integrated_name}
+
+다음은 각 편(章)별 분석 결과입니다:
+
+{analyses_summary}
+
+다음 항목들을 JSON 형식으로 분석해주세요:
+
+1. **통합 프로세스 흐름**: 여러 편을 거쳐 진행되는 전체 프로세스
+2. **부서 간 연계**: 각 편에서의 부서들 간의 데이터 흐름 및 연계
+3. **주요 의사결정 포인트**: 전체 프로세스에서 가장 중요한 결정 지점들
+4. **데이터 흐름**: 입력, 처리, 출력 데이터의 흐름
+5. **시스템 인터페이스**: 필요한 시스템/도구들 간의 인터페이스
+6. **리스크 포인트**: 프로세스 실패 가능성이 높은 지점들
+7. **개선 기회**: 자동화나 효율화 가능한 부분들
+
+JSON 응답 형식:
+{{
+    "integrated_process": {{
+        "name": "통합 프로세스명",
+        "description": "프로세스 설명",
+        "steps": [
+            {{
+                "step_number": 1,
+                "step_name": "단계명",
+                "description": "설명",
+                "responsible_department": "담당 부서",
+                "related_editions": [1, 2],
+                "outputs": ["결과물"]
+            }}
+        ]
+    }},
+    "department_interactions": [
+        {{
+            "from_dept": "부서A",
+            "to_dept": "부서B",
+            "data_flow": "데이터명",
+            "related_editions": [1, 2]
+        }}
+    ],
+    "critical_decision_points": [
+        {{
+            "point_name": "의사결정명",
+            "edition": 1,
+            "description": "설명",
+            "impact": "영향도"
+        }}
+    ],
+    "data_flow_diagram": {{
+        "description": "데이터 흐름 설명",
+        "flows": ["flow1", "flow2"]
+    }},
+    "system_interfaces": [
+        {{
+            "system_a": "시스템A",
+            "system_b": "시스템B",
+            "interface_type": "인터페이스 유형",
+            "description": "설명"
+        }}
+    ],
+    "risk_points": [
+        {{
+            "point_name": "리스크명",
+            "edition": 1,
+            "severity": "High/Medium/Low",
+            "description": "설명",
+            "mitigation": "완화 방법"
+        }}
+    ],
+    "improvement_opportunities": [
+        {{
+            "area": "개선 영역",
+            "description": "설명",
+            "impact": "예상 효과",
+            "priority": "High/Medium/Low"
+        }}
+    ]
+}}
+
+다른 설명 없이 JSON만 반환해주세요.
+"""
+    
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=4096,
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    )
+    
+    response_text = message.content[0].text
+    
+    # JSON 파싱
+    try:
+        integrated_data = json.loads(response_text)
+    except json.JSONDecodeError:
+        # JSON 추출 시도
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        if json_match:
+            integrated_data = json.loads(json_match.group())
+        else:
+            integrated_data = {"raw_response": response_text}
+    
+    return integrated_data
+
