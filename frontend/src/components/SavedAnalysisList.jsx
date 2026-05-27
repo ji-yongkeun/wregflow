@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import IntegrationPanel from './IntegrationPanel'
 import IntegrationResultView from './IntegrationResultView'
+import IntegrationDiagramsModal from './IntegrationDiagramsModal'
+import AnalysisDetailView from './AnalysisDetailView'
 
 export function SavedAnalysisList() {
   const [analyses, setAnalyses] = useState([])
@@ -15,6 +17,8 @@ export function SavedAnalysisList() {
   const [integrations, setIntegrations] = useState([])
   const [showIntegrations, setShowIntegrations] = useState(false)
   const [selectedIntegration, setSelectedIntegration] = useState(null)
+  const [showDiagrams, setShowDiagrams] = useState(false)
+  const [selectedAnalysisDetail, setSelectedAnalysisDetail] = useState(null)
 
   useEffect(() => {
     fetchAnalyses()
@@ -84,6 +88,25 @@ export function SavedAnalysisList() {
     } catch (error) {
       console.error('삭제 실패:', error)
       alert('삭제에 실패했습니다')
+    }
+  }
+
+  // 분석 상세 데이터 로드 함수 (NEW)
+  const loadAnalysisDetail = async (analysisId) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8001/api/analysis/detail/${analysisId}`
+      )
+      const data = await response.json()
+      
+      if (data.status === 'success' && data.analysis) {
+        setSelectedAnalysisDetail(data.analysis)
+      } else {
+        alert('분석 데이터를 불러올 수 없습니다')
+      }
+    } catch (error) {
+      console.error('분석 데이터 로드 실패:', error)
+      alert('분석 데이터 로드에 실패했습니다')
     }
   }
 
@@ -191,14 +214,22 @@ export function SavedAnalysisList() {
                       className="btn-view"
                       onClick={() => handleViewIntegrationDetail(integration.id)}
                     >
-                      상세보기
+                      📋 상세보기
+                    </button>
+                    <button
+                      className="btn-diagram"
+                      onClick={async () => {
+                        await handleViewIntegrationDetail(integration.id)
+                        setShowDiagrams(true)
+                      }}
+                    >
+                      📊 다이어그램
                     </button>
                     <button
                       className="btn-download-word"
                       onClick={() => {
                         window.location.href = `http://localhost:8001/api/download/integration/${integration.id}/word`
                       }}
-                      title="Word로 다운로드"
                     >
                       📄 Word
                     </button>
@@ -207,14 +238,12 @@ export function SavedAnalysisList() {
                       onClick={() => {
                         window.location.href = `http://localhost:8001/api/download/integration/${integration.id}/excel`
                       }}
-                      title="Excel로 다운로드"
                     >
                       📊 Excel
                     </button>
                     <button
-                      className="delete-icon-btn"
+                      className="btn-delete"
                       onClick={() => handleDeleteIntegration(integration.id)}
-                      title="삭제"
                     >
                       🗑️
                     </button>
@@ -280,66 +309,36 @@ export function SavedAnalysisList() {
                 <p className="count">총 {filteredAnalyses.length}개</p>
                 {filteredAnalyses.map(analysis => (
                   <div key={analysis.id} className="analysis-card">
-                    <div className="card-header">
-                      <div className="card-selection">
-                        <input
-                          type="checkbox"
-                          checked={selectedAnalysisIds.has(analysis.id)}
-                          onChange={() => toggleAnalysisSelection(analysis.id)}
-                          onClick={(e) => e.stopPropagation()} // 헤더 클릭 시 아코디언 토글 방지
-                          id={`analysis-${analysis.id}`}
-                        />
-                      </div>
-                      <label 
-                        htmlFor={`analysis-${analysis.id}`} 
-                        className="card-label"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                        }}
-                      >
-                        <div className="card-title">
-                          {analysis.edition && (
-                            <span className="edition-badge">{analysis.edition}편</span>
-                          )}
-                          <strong>{analysis.process_name}</strong>
-                        </div>
-                      </label>
-                      <div className="card-header-actions">
-                        <button 
-                          className="expand-btn"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setExpandedId(expandedId === analysis.id ? null : analysis.id)
-                          }}
-                        >
-                          {expandedId === analysis.id ? '▼' : '▶'}
-                        </button>
-                        <button
-                          className="delete-icon-btn"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDelete(analysis.id)
-                          }}
-                          title="삭제"
-                        >
-                          🗑️
-                        </button>
-                      </div>
+                    <div className="analysis-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={selectedAnalysisIds.has(analysis.id)}
+                        onChange={() => toggleAnalysisSelection(analysis.id)}
+                      />
+                    </div>
+                    
+                    <div className="analysis-info">
+                      <h4>{analysis.file_name}</h4>
+                      <p>{analysis.edition ? `${analysis.edition}편` : ''}</p>
+                      <p className="analysis-process">{analysis.process_name || '(프로세스 미설정)'}</p>
                     </div>
 
-                    {expandedId === analysis.id && (
-                      <div className="card-body">
-                        <p>{analysis.description || '(설명 없음)'}</p>
-                        <div className="card-stats">
-                          <span>Swim Lane: {analysis.swim_lanes_count}개</span>
-                          <span>RACI: {analysis.raci_count}개</span>
-                          <span>의사결정: {analysis.decisions_count}개</span>
-                        </div>
-                        <p className="card-date">
-                          {new Date(analysis.created_at).toLocaleString('ko-KR')}
-                        </p>
-                      </div>
-                    )}
+                    <div className="analysis-actions">
+                      <button
+                        className="btn-detail"
+                        onClick={() => loadAnalysisDetail(analysis.id)}
+                        title="상세 정보 보기"
+                      >
+                        📋 상세
+                      </button>
+                      <button
+                        className="btn-delete"
+                        onClick={() => handleDelete(analysis.id)}
+                        title="삭제"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -363,10 +362,27 @@ export function SavedAnalysisList() {
       )}
 
       {/* 통합 분석 결과 뷰 */}
-      {selectedIntegration && (
+      {selectedIntegration && !showDiagrams && (
         <IntegrationResultView
           result={selectedIntegration}
           onClose={() => setSelectedIntegration(null)}
+        />
+      )}
+
+      {showDiagrams && selectedIntegration && (
+        <IntegrationDiagramsModal
+          data={selectedIntegration.integrated_data}
+          onClose={() => {
+            setShowDiagrams(false)
+            setSelectedIntegration(null)
+          }}
+        />
+      )}
+
+      {selectedAnalysisDetail && (
+        <AnalysisDetailView
+          analysis={selectedAnalysisDetail}
+          onClose={() => setSelectedAnalysisDetail(null)}
         />
       )}
     </div>

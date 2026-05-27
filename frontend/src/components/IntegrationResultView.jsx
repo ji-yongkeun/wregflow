@@ -1,14 +1,56 @@
 import { useState } from 'react'
-import IntegrationDiagrams from './IntegrationDiagrams'
 
 export function IntegrationResultView({ result, onClose }) {
+  const [expandedSection, setExpandedSection] = useState(null)
+
   if (!result) {
     return null
   }
 
+  const sections = [
+    {
+      id: 'process',
+      title: '📊 통합 프로세스 흐름',
+      key: 'integrated_process',
+    },
+    {
+      id: 'interactions',
+      title: '🔗 부서 간 데이터 흐름',
+      key: 'department_interactions',
+    },
+    {
+      id: 'decisions',
+      title: '⚡ 의사결정 포인트',
+      key: 'critical_decision_points',
+    },
+    {
+      id: 'dataflow',
+      title: '📈 데이터 흐름도',
+      key: 'data_flow_diagram',
+    },
+    {
+      id: 'interfaces',
+      title: '🖥️ 시스템 인터페이스',
+      key: 'system_interfaces',
+    },
+    {
+      id: 'risks',
+      title: '⚠️ 리스크 포인트',
+      key: 'risk_points',
+    },
+    {
+      id: 'improvements',
+      title: '💡 개선 기회',
+      key: 'improvement_opportunities',
+    }
+  ]
+
+  const toggleSection = (id) => {
+    setExpandedSection(expandedSection === id ? null : id)
+  }
+
   return (
-    <div className="integration-result-container">
-      {/* 모달 배경 제거 - 일반 컨테이너로 변경 */}
+    <div className="integration-result-overlay">
       <div className="integration-result-panel">
         <div className="result-header">
           <div className="result-title">
@@ -18,84 +60,46 @@ export function IntegrationResultView({ result, onClose }) {
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
 
-        {/* JSON 결과 - 축소 형식 */}
-        <div className="result-content-compact">
-          <div className="compact-sections">
-            {/* 주요 섹션만 요약으로 표시 */}
-            {result.integrated_data?.integrated_process && (
-              <div className="compact-item">
-                <strong>📊 통합 프로세스:</strong> {result.integrated_data.integrated_process.steps?.length || 0}개 단계
-              </div>
-            )}
-            {result.integrated_data?.department_interactions && (
-              <div className="compact-item">
-                <strong>🔗 부서 간 연계:</strong> {result.integrated_data.department_interactions.length}개 흐름
-              </div>
-            )}
-            {result.integrated_data?.critical_decision_points && (
-              <div className="compact-item">
-                <strong>⚡ 의사결정 포인트:</strong> {result.integrated_data.critical_decision_points.length}개
-              </div>
-            )}
-            {result.integrated_data?.risk_points && (
-              <div className="compact-item">
-                <strong>⚠️ 리스크:</strong> {result.integrated_data.risk_points.length}개
-              </div>
-            )}
-            {result.integrated_data?.improvement_opportunities && (
-              <div className="compact-item">
-                <strong>💡 개선기회:</strong> {result.integrated_data.improvement_opportunities.length}개
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 3개 다이어그램 - 큰 크기로 표시 */}
-        <div className="integration-diagrams-wrapper">
-          <IntegrationDiagrams data={result.integrated_data} />
-        </div>
-
-        {/* 상세 정보 - 접기식 */}
-        <div className="detailed-sections">
-          <details className="detail-group">
-            <summary className="detail-summary">📋 리스크 포인트 상세</summary>
-            <div className="detail-content">
-              {result.integrated_data?.risk_points ? (
-                result.integrated_data.risk_points.map((risk, idx) => (
-                  <div key={idx} className="detail-item">
-                    <strong>{risk.point_name}</strong> ({risk.severity})
-                    <p>{risk.mitigation}</p>
+        <div className="result-content">
+          {sections.map(section => {
+            const data = result.integrated_data?.[section.key]
+            
+            return (
+              <div key={section.id} className="result-section">
+                <div
+                  className="section-header"
+                  onClick={() => toggleSection(section.id)}
+                >
+                  <div className="section-title">
+                    <h3>{section.title}</h3>
                   </div>
-                ))
-              ) : (
-                <p>데이터 없음</p>
-              )}
-            </div>
-          </details>
+                  <span className="toggle-icon">
+                    {expandedSection === section.id ? '▼' : '▶'}
+                  </span>
+                </div>
 
-          <details className="detail-group">
-            <summary className="detail-summary">💡 개선 기회 상세</summary>
-            <div className="detail-content">
-              {result.integrated_data?.improvement_opportunities ? (
-                result.integrated_data.improvement_opportunities.map((impr, idx) => (
-                  <div key={idx} className="detail-item">
-                    <strong>{impr.area}</strong> ({impr.priority})
-                    <p>{impr.impact}</p>
+                {expandedSection === section.id && (
+                  <div className="section-body">
+                    <pre className="result-json">
+                      {typeof data === 'string'
+                        ? data
+                        : JSON.stringify(data, null, 2)
+                      }
+                    </pre>
                   </div>
-                ))
-              ) : (
-                <p>데이터 없음</p>
-              )}
-            </div>
-          </details>
+                )}
+              </div>
+            )
+          })}
         </div>
 
-        {/* 푸터 */}
         <div className="result-footer">
-          <span className="result-date">
+          <p className="result-date">
             생성: {new Date(result.created_at).toLocaleString('ko-KR')}
-          </span>
-          <button className="btn-close" onClick={onClose}>닫기</button>
+          </p>
+          <button className="btn-close" onClick={onClose}>
+            닫기
+          </button>
         </div>
       </div>
     </div>

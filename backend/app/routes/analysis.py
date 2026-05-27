@@ -12,10 +12,20 @@ async def get_all_analyses(db: Session = Depends(get_db)):
         analyses = db.query(AnalysisResult).order_by(
             AnalysisResult.created_at.desc()
         ).all()
+        
+        result_list = []
+        for a in analyses:
+            d = a.to_dict()
+            file_info = db.query(RegulationFile).filter(
+                RegulationFile.file_id == a.file_id
+            ).first()
+            d['file_name'] = file_info.file_name if file_info else a.file_id
+            result_list.append(d)
+            
         return {
             "status": "success",
             "total": len(analyses),
-            "analyses": [a.to_dict() for a in analyses]
+            "analyses": result_list
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -45,9 +55,18 @@ async def get_analysis_detail(analysis_id: str, db: Session = Depends(get_db)):
         ).first()
         if not analysis:
             raise HTTPException(status_code=404, detail="분석을 찾을 수 없습니다")
+            
+        file_info = db.query(RegulationFile).filter(
+            RegulationFile.file_id == analysis.file_id
+        ).first()
+        file_name = file_info.file_name if file_info else analysis.file_id
+        
+        analysis_data = analysis.to_dict_with_data()
+        analysis_data['file_name'] = file_name
+        
         return {
             "status": "success",
-            "analysis": analysis.to_dict_with_data()
+            "analysis": analysis_data
         }
     except HTTPException:
         raise
