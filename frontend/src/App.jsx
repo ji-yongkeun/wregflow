@@ -396,20 +396,22 @@ function AppContent() {
           </>
         ) : null}
         
-        <section className="features">
-          <div className="feature-card">
-            <h3>📊 Swim Lane</h3>
-            <p>부서/역할별 담당 시각화</p>
-          </div>
-          <div className="feature-card">
-            <h3>👥 RACI 매트릭스</h3>
-            <p>책임 관계 정의</p>
-          </div>
-          <div className="feature-card">
-            <h3>🔀 의사결정 맵</h3>
-            <p>의사결정 분기 자동 추출</p>
-          </div>
-        </section>
+        {!multipleAnalyses.length && !analysis && (
+          <section className="features">
+            <div className="feature-card">
+              <h3>📊 Swim Lane</h3>
+              <p>부서/역할별 담당 시각화</p>
+            </div>
+            <div className="feature-card">
+              <h3>👥 RACI 매트릭스</h3>
+              <p>책임 관계 정의</p>
+            </div>
+            <div className="feature-card">
+              <h3>🔀 의사결정 맵</h3>
+              <p>의사결정 분기 자동 추출</p>
+            </div>
+          </section>
+        )}
           </>
         )}
       </main>
