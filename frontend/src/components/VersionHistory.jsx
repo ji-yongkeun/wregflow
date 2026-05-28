@@ -15,7 +15,8 @@ export function VersionHistory({ fileId }) {
   const fetchVersions = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`http://localhost:8001/api/versions/file/${encodeURIComponent(fileId)}`)
+      const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api'
+      const response = await fetch(`${BASE}/versions/file/${encodeURIComponent(fileId)}`)
       const data = await response.json()
       
       if (data.status === 'success') {
@@ -47,7 +48,7 @@ export function VersionHistory({ fileId }) {
 
     try {
       const response = await fetch(
-        `http://localhost:8001/api/versions/compare?version_id1=${selectedVersions[0]}&version_id2=${selectedVersions[1]}`,
+        `${BASE}/versions/compare?version_id1=${selectedVersions[0]}&version_id2=${selectedVersions[1]}`,
         { method: 'POST' }
       )
       const data = await response.json()

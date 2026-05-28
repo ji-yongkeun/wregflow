@@ -22,7 +22,8 @@ export function PermissionProvider({ children }) {
 
   const fetchPermissions = async (userId) => {
     try {
-      const response = await fetch('http://localhost:8001/api/permissions/my-permissions', {
+      const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api'
+      const response = await fetch(`${BASE}/permissions/my-permissions`, {
         headers: {
           'X-User-Id': userId
         }

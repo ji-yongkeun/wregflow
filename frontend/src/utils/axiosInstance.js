@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api'
+
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:8001'
+  baseURL: BASE
 })
 
 // 요청 인터셉터: X-User-Id 헤더 추가

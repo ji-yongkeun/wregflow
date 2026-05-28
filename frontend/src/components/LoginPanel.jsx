@@ -18,7 +18,8 @@ export function LoginPanel() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:8001/api/permissions/roles')
+      const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api'
+      const response = await fetch(`${BASE}/permissions/roles`)
       if (!response.ok) throw new Error('API 응답 오류')
       const data = await response.json()
       // API에서 사용자 목록을 받은 경우 업데이트 (현재는 기본값 유지)
