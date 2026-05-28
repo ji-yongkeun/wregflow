@@ -1,32 +1,17 @@
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 import json
 from app.db.database import get_db
 from app.models.share import Share
 from app.schemas.share import ShareCreate, ShareResponse, ShareDetail
-from app.services.permission_service import can_share
 
 router = APIRouter(prefix="/api/shares", tags=["shares"])
 
 @router.post("/create")
 async def create_share(
     payload: ShareCreate,
-    x_user_id: str = Header(None),
     db: Session = Depends(get_db)
 ):
-    """
-    분석 결과를 공유하기 위한 링크 생성
-    
-    Response:
-    - share_id: 공유 ID (고유한 UUID)
-    - share_url: 공유 링크
-    """
-    if not x_user_id:
-        raise HTTPException(status_code=401, detail="사용자 인증 필요")
-    
-    if not can_share(db, x_user_id):
-        raise HTTPException(status_code=403, detail="공유 권한이 없습니다")
-
     try:
         share = Share(
             process_name=payload.process_name,

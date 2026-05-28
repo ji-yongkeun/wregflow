@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, Query, HTTPException, Depends, Header
+from fastapi import APIRouter, UploadFile, File, Form, Query, HTTPException, Depends
 from sqlalchemy.orm import Session
 from pathlib import Path
 import shutil
@@ -7,7 +7,6 @@ from app.db.database import get_db
 from app.services.text_extractor import extract_text
 from app.services.claude_analyzer import analyze_regulation
 from app.services.version_service import save_version
-from app.services.permission_service import can_upload, can_analyze
 from app.models.analysis import RegulationFile, AnalysisResult
 
 router = APIRouter(prefix="/api/regulations", tags=["regulations"])
@@ -18,16 +17,10 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 @router.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
-    edition: int = Form(None),  # 사용자가 입력한 edition
-    edition_name: str = Form(None),  # 사용자가 입력한 edition_name
-    x_user_id: str = Header(None),
+    edition: int = Form(None),
+    edition_name: str = Form(None),
     db: Session = Depends(get_db)
 ):
-    if not x_user_id:
-        raise HTTPException(status_code=401, detail="사용자 인증 필요")
-    
-    if not can_upload(db, x_user_id):
-        raise HTTPException(status_code=403, detail="파일 업로드 권한이 없습니다")
 
     if not file.filename:
         raise HTTPException(status_code=400, detail="파일이 선택되지 않았습니다.")
@@ -106,7 +99,6 @@ async def analyze_regulation_file(
     file_id: str,
     edition: int = Query(None),
     edition_name: str = Query(None),
-    x_user_id: str = Header(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -115,12 +107,6 @@ async def analyze_regulation_file(
     - Claude AI로 분석
     - Swim Lane, RACI, 의사결정 데이터 반환
     """
-    if not x_user_id:
-        raise HTTPException(status_code=401, detail="사용자 인증 필요")
-    
-    if not can_analyze(db, x_user_id):
-        raise HTTPException(status_code=403, detail="분석 권한이 없습니다")
-
     try:
         file_path = UPLOAD_DIR / file_id
         if not file_path.exists():
