@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import SwimlaneDiagram from './SwimlaneDiagram'
 import DecisionTable from './DecisionTable'
-import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage } from '../utils/downloadUtils'
+import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage, downloadSingleAnalysisExcel } from '../utils/downloadUtils'
 import PermissionGuard from './PermissionGuard'
 
 export function MultiFileAnalysis({ analyses, fileNames }) {
@@ -118,6 +118,14 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
     }
   }
 
+  const handleDownloadExcelFS = () => {
+    downloadSingleAnalysisExcel(currentAnalysis, 'fs')
+  }
+
+  const handleDownloadExcelFT = () => {
+    downloadSingleAnalysisExcel(currentAnalysis, 'ft')
+  }
+
   const renderContent = () => {
     switch(selectedTab) {
       case 'swimlane':
@@ -129,6 +137,16 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
                   typeof currentAnalysis.swim_lanes === 'string'
                     ? JSON.parse(currentAnalysis.swim_lanes)
                     : currentAnalysis.swim_lanes
+                }
+                raci={
+                  typeof currentAnalysis.raci === 'string'
+                    ? JSON.parse(currentAnalysis.raci)
+                    : currentAnalysis.raci
+                }
+                decisions={
+                  typeof currentAnalysis.decisions === 'string'
+                    ? JSON.parse(currentAnalysis.decisions)
+                    : currentAnalysis.decisions
                 }
               />
             ) : (
@@ -213,6 +231,22 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
               title="JSON 데이터를 파일로 다운로드"
             >
               💾 JSON 저장
+            </button>
+            <button 
+              className="btn-download-excel"
+              style={{ background: '#3730a3', color: '#ffffff', borderColor: '#4f46e5', marginLeft: '5px' }}
+              onClick={handleDownloadExcelFS}
+              title="전체 프로세스를 FS(기능정의) 기준 엑셀로 다운로드"
+            >
+              📊 엑셀 저장 (FS 기준)
+            </button>
+            <button 
+              className="btn-download-excel"
+              style={{ background: '#b45309', color: '#ffffff', borderColor: '#d97706', marginLeft: '5px' }}
+              onClick={handleDownloadExcelFT}
+              title="전체 프로세스를 FT(테스트시나리오) 기준 엑셀로 다운로드"
+            >
+              📊 엑셀 저장 (FT 기준)
             </button>
             <button 
               className={`btn-copy-json ${copiedJson ? 'copied' : ''}`}

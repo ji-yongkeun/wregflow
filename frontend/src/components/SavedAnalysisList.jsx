@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import IntegrationPanel from './IntegrationPanel'
 import IntegrationResultView from './IntegrationResultView'
-import IntegrationDiagramsModal from './IntegrationDiagramsModal'
 import AnalysisDetailView from './AnalysisDetailView'
 
 export function SavedAnalysisList() {
@@ -17,7 +16,6 @@ export function SavedAnalysisList() {
   const [integrations, setIntegrations] = useState([])
   const [showIntegrations, setShowIntegrations] = useState(false)
   const [selectedIntegration, setSelectedIntegration] = useState(null)
-  const [showDiagrams, setShowDiagrams] = useState(false)
   const [selectedAnalysisDetail, setSelectedAnalysisDetail] = useState(null)
 
   useEffect(() => {
@@ -164,12 +162,15 @@ export function SavedAnalysisList() {
     try {
       const response = await fetch(`http://localhost:8001/api/integration/detail/${id}`)
       const data = await response.json()
-      if (data.status === 'success') {
+      if (response.ok && data.status === 'success') {
         setSelectedIntegration(data.integration)
+      } else {
+        const errorMsg = data.detail || data.message || '상세 데이터가 없습니다.'
+        alert(`상세 정보를 가져오는데 실패했습니다: ${errorMsg}`)
       }
     } catch (error) {
       console.error('통합 분석 상세 조회 실패:', error)
-      alert('상세 정보를 가져오는데 실패했습니다')
+      alert(`상세 정보를 가져오는데 실패했습니다.\n오류: ${error.message}`)
     }
   }
 
@@ -215,15 +216,6 @@ export function SavedAnalysisList() {
                       onClick={() => handleViewIntegrationDetail(integration.id)}
                     >
                       📋 상세보기
-                    </button>
-                    <button
-                      className="btn-diagram"
-                      onClick={async () => {
-                        await handleViewIntegrationDetail(integration.id)
-                        setShowDiagrams(true)
-                      }}
-                    >
-                      📊 다이어그램
                     </button>
                     <button
                       className="btn-download-word"
@@ -362,20 +354,10 @@ export function SavedAnalysisList() {
       )}
 
       {/* 통합 분석 결과 뷰 */}
-      {selectedIntegration && !showDiagrams && (
+      {selectedIntegration && (
         <IntegrationResultView
           result={selectedIntegration}
           onClose={() => setSelectedIntegration(null)}
-        />
-      )}
-
-      {showDiagrams && selectedIntegration && (
-        <IntegrationDiagramsModal
-          data={selectedIntegration.integrated_data}
-          onClose={() => {
-            setShowDiagrams(false)
-            setSelectedIntegration(null)
-          }}
         />
       )}
 

@@ -49,9 +49,19 @@ async def startup_event():
     from app.db.database import SessionLocal
     from app.models.analysis import AnalysisResult
     from app.routes.regulations import extract_edition_from_filename
+    from sqlalchemy import text
     
     db = SessionLocal()
     try:
+        # system_interfaces 컬럼 존재 여부 확인 및 추가 (PostgreSQL)
+        try:
+            db.execute(text("ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS system_interfaces JSON;"))
+            db.commit()
+            print("✅ analysis_results 테이블에 system_interfaces 컬럼 검사/추가 완료")
+        except Exception as db_err:
+            db.rollback()
+            print(f"⚠️ system_interfaces 컬럼 추가 중 오류 (무시 가능): {db_err}")
+
         # edition이 NULL인 분석 결과 찾기
         null_editions = db.query(AnalysisResult).filter(
             AnalysisResult.edition == None

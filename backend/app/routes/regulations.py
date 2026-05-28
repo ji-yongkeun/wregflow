@@ -172,6 +172,7 @@ async def analyze_regulation_file(
                 swim_lanes=analysis.get("swim_lanes", []),
                 raci=analysis.get("raci", []),
                 decisions=analysis.get("decisions", []),
+                system_interfaces=analysis.get("system_interfaces", []),
                 swim_lanes_count=len(analysis.get("swim_lanes", [])),
                 raci_count=len(analysis.get("raci", [])),
                 decisions_count=len(analysis.get("decisions", []))

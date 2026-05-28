@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import SwimlaneDiagram from './SwimlaneDiagram'
 import DecisionTable from './DecisionTable'
-import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage } from '../utils/downloadUtils'
+import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage, downloadSingleAnalysisExcel } from '../utils/downloadUtils'
 
 // RACIMatrix 로컬 컴포넌트 정의
 function RACIMatrix({ data }) {
@@ -41,6 +41,11 @@ export function AnalysisDetailView({ analysis, onClose }) {
   const raciTableRef = useRef(null)
   const decisionTableRef = useRef(null)
 
+  // 일괄/오프스크린 이미지 캡처용 Ref
+  const captureSwimlaneRef = useRef(null)
+  const captureRaciRef = useRef(null)
+  const captureDecisionRef = useRef(null)
+
   if (!analysis) {
     return null
   }
@@ -62,21 +67,18 @@ export function AnalysisDetailView({ analysis, onClose }) {
     
     switch(selectedTab) {
       case 'swimlane':
-        if (swimlaneSvgRef.current) {
-          const svg = swimlaneSvgRef.current.querySelector('svg')
-          if (svg) {
-            await downloadSvgAsImage(svg, `swimlane_${currentDate}.png`)
-          }
+        if (captureSwimlaneRef.current) {
+          await downloadTableAsImage(captureSwimlaneRef.current, `swimlane_${currentDate}.png`)
         }
         break
       case 'raci':
-        if (raciTableRef.current) {
-          await downloadTableAsImage(raciTableRef.current, `raci_${currentDate}.png`)
+        if (captureRaciRef.current) {
+          await downloadTableAsImage(captureRaciRef.current, `raci_${currentDate}.png`)
         }
         break
       case 'decisions':
-        if (decisionTableRef.current) {
-          await downloadTableAsImage(decisionTableRef.current, `decisions_${currentDate}.png`)
+        if (captureDecisionRef.current) {
+          await downloadTableAsImage(captureDecisionRef.current, `decisions_${currentDate}.png`)
         }
         break
       default:
@@ -118,6 +120,10 @@ export function AnalysisDetailView({ analysis, onClose }) {
     }
   }
 
+  const handleDownloadProcessExcel = async (type) => {
+    await downloadSingleAnalysisExcel(analysis, type)
+  }
+
   const renderContent = (data) => {
     if (!data) return '데이터가 없습니다'
     
@@ -144,6 +150,16 @@ export function AnalysisDetailView({ analysis, onClose }) {
                 typeof analysis.swim_lanes === 'string' 
                   ? JSON.parse(analysis.swim_lanes)
                   : analysis.swim_lanes
+              }
+              raci={
+                typeof analysis.raci === 'string'
+                  ? JSON.parse(analysis.raci)
+                  : analysis.raci
+              }
+              decisions={
+                typeof analysis.decisions === 'string'
+                  ? JSON.parse(analysis.decisions)
+                  : analysis.decisions
               }
             />
           )
@@ -281,6 +297,22 @@ export function AnalysisDetailView({ analysis, onClose }) {
                       💾 JSON 저장
                     </button>
                     <button 
+                      className="btn-download-excel"
+                      style={{ background: '#3730a3', color: '#ffffff', borderColor: '#4f46e5', marginLeft: '5px' }}
+                      onClick={() => handleDownloadProcessExcel('fs')}
+                      title="전체 프로세스를 FS(기능정의) 기준 엑셀로 다운로드"
+                    >
+                      📊 엑셀 저장 (FS 기준)
+                    </button>
+                    <button 
+                      className="btn-download-excel"
+                      style={{ background: '#b45309', color: '#ffffff', borderColor: '#d97706', marginLeft: '5px' }}
+                      onClick={() => handleDownloadProcessExcel('ft')}
+                      title="전체 프로세스를 FT(테스트시나리오) 기준 엑셀로 다운로드"
+                    >
+                      📊 엑셀 저장 (FT 기준)
+                    </button>
+                    <button 
                       className={`btn-copy-json ${copiedJson ? 'copied' : ''}`}
                       onClick={() => copyToClipboard(currentTab.data)}
                       title="JSON을 클립보드에 복사"
@@ -315,6 +347,50 @@ export function AnalysisDetailView({ analysis, onClose }) {
                 <p>데이터를 선택해주세요</p>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* 캡처를 위한 오프스크린(숨겨진) 렌더링 컨테이너 */}
+        <div style={{ position: 'fixed', top: 0, left: '-99999px', width: '3000px', height: '3000px', pointerEvents: 'none', zIndex: -9999 }}>
+          <div ref={captureSwimlaneRef} style={{ width: 'max-content', minWidth: '1200px', background: '#0f172a', padding: '20px', borderRadius: '8px' }}>
+            <h3 style={{ color: '#93c5fd', marginBottom: '15px' }}>🏊 Swim Lane 다이어그램</h3>
+            <SwimlaneDiagram 
+              data={
+                typeof analysis.swim_lanes === 'string' 
+                  ? JSON.parse(analysis.swim_lanes)
+                  : analysis.swim_lanes
+              }
+              raci={
+                typeof analysis.raci === 'string'
+                  ? JSON.parse(analysis.raci)
+                  : analysis.raci
+              }
+              decisions={
+                typeof analysis.decisions === 'string'
+                  ? JSON.parse(analysis.decisions)
+                  : analysis.decisions
+              }
+            />
+          </div>
+          <div ref={captureRaciRef} style={{ width: '800px', background: '#0f172a', padding: '20px', borderRadius: '8px' }}>
+            <h3 style={{ color: '#93c5fd', marginBottom: '15px' }}>👥 RACI 매트릭스</h3>
+            <RACIMatrix 
+              data={
+                typeof analysis.raci === 'string' 
+                  ? JSON.parse(analysis.raci)
+                  : analysis.raci
+              }
+            />
+          </div>
+          <div ref={captureDecisionRef} style={{ width: '900px', background: '#0f172a', padding: '20px', borderRadius: '8px' }}>
+            <h3 style={{ color: '#93c5fd', marginBottom: '15px' }}>⚡ 의사결정 포인트</h3>
+            <DecisionTable 
+              data={
+                typeof analysis.decisions === 'string' 
+                  ? JSON.parse(analysis.decisions)
+                  : analysis.decisions
+              }
+            />
           </div>
         </div>
 

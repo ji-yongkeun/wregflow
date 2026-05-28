@@ -2503,6 +2503,7 @@ footer {
   border: 1px solid #4F46E5;
   border-radius: var(--border-radius-md);
   padding: 1.5rem;
+  min-width: 0;
 }
 
 .viz-header {
@@ -3062,3 +3063,518 @@ footer {
     overflow-x: auto;
   }
 }
+
+/* ==================== 통합 분석 결과 개편 스타일 ==================== */
+
+.viz-render-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+  max-height: 550px;
+  padding-right: 0.5rem;
+}
+
+.viz-render-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.viz-render-body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.viz-render-body::-webkit-scrollbar-thumb {
+  background: rgba(79, 70, 229, 0.4);
+  border-radius: 3px;
+}
+
+.viz-render-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(79, 70, 229, 0.6);
+}
+
+.tab-visual-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.viz-table-wrapper {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.viz-table-wrapper h4 {
+  color: #93c5fd;
+  margin: 0 0 1rem 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.viz-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.viz-data-table th, 
+.viz-data-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(79, 70, 229, 0.2);
+}
+
+.viz-data-table th {
+  background: rgba(79, 70, 229, 0.1);
+  color: #93c5fd;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.viz-data-table tbody tr:hover {
+  background: rgba(79, 70, 229, 0.05);
+}
+
+.highlight-text {
+  color: #e0e7ff;
+  font-weight: 600;
+}
+
+.text-danger {
+  color: #f87171 !important;
+}
+
+.text-success {
+  color: #4ade80 !important;
+}
+
+.text-info {
+  color: #60a5fa !important;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.badge-edition {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 0.5px solid rgba(59, 130, 246, 0.4);
+  margin-right: 4px;
+}
+
+.badge-danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 0.5px solid rgba(239, 68, 68, 0.4);
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 0.5px solid rgba(245, 158, 11, 0.4);
+}
+
+.badge-success {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 0.5px solid rgba(16, 185, 129, 0.4);
+}
+
+.badge-info {
+  background: rgba(6, 182, 212, 0.2);
+  color: #22d3ee;
+  border: 0.5px solid rgba(6, 182, 212, 0.4);
+}
+
+.desc-cell {
+  color: #a0aec0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.description-card {
+  background: rgba(79, 70, 229, 0.05);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.description-card h5 {
+  color: #93c5fd;
+  margin: 0 0 0.5rem 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.description-card p {
+  color: #cbd5e1;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ==================== 분석 상세보기 오버레이 ==================== */
+
+.analysis-detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.analysis-detail-panel {
+  background: #0f172a;
+  border: 1px solid rgba(79, 70, 229, 0.4);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 1200px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+}
+
+/* 헤더 */
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem 1.75rem;
+  border-bottom: 1px solid rgba(79, 70, 229, 0.25);
+  background: rgba(79, 70, 229, 0.07);
+  flex-shrink: 0;
+}
+
+.detail-title h2 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.25rem;
+  color: #e0e7ff;
+}
+
+.detail-title p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.detail-edition {
+  margin-top: 0.2rem !important;
+  color: #818cf8 !important;
+  font-size: 0.8rem !important;
+  font-weight: 600;
+}
+
+.detail-close-btn {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 6px;
+  color: #f87171;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.detail-close-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+/* 정보 바 */
+.detail-info-bar {
+  display: flex;
+  gap: 2rem;
+  padding: 0.85rem 1.75rem;
+  background: rgba(30, 41, 59, 0.6);
+  border-bottom: 1px solid rgba(79, 70, 229, 0.15);
+  font-size: 0.82rem;
+  color: #94a3b8;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.info-item strong {
+  color: #93c5fd;
+  margin-right: 0.35rem;
+}
+
+/* 본문 레이아웃 */
+.detail-content {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 좌측 사이드바 */
+.detail-sections {
+  padding: 1.25rem 1rem;
+  border-right: 1px solid rgba(79, 70, 229, 0.2);
+  background: rgba(15, 23, 42, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+}
+
+.detail-sections h3 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.5rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(79, 70, 229, 0.2);
+}
+
+.section-button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  user-select: none;
+}
+
+.section-button:hover {
+  background: rgba(79, 70, 229, 0.12);
+  color: #c7d2fe;
+  border-color: rgba(79, 70, 229, 0.25);
+}
+
+.section-button.active {
+  background: rgba(79, 70, 229, 0.2);
+  border-color: rgba(79, 70, 229, 0.5);
+  color: #e0e7ff;
+}
+
+.section-button-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-button .icon {
+  font-size: 1rem;
+}
+
+.section-button .arrow {
+  font-size: 0.65rem;
+  color: #4f46e5;
+  opacity: 0.7;
+}
+
+/* 우측 시각화 영역 */
+.detail-visualization {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.viz-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(79, 70, 229, 0.2);
+  background: rgba(30, 41, 59, 0.4);
+  flex-shrink: 0;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.viz-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #e0e7ff;
+}
+
+.download-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* 다운로드 버튼 공통 */
+.btn-download-image,
+.btn-download-csv,
+.btn-download-json,
+.btn-download-excel,
+.btn-copy-json {
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-download-image {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+.btn-download-image:hover {
+  background: rgba(16, 185, 129, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-download-csv {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: rgba(6, 182, 212, 0.4);
+  color: #22d3ee;
+}
+.btn-download-csv:hover {
+  background: rgba(6, 182, 212, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-download-json {
+  background: rgba(79, 70, 229, 0.15);
+  border-color: rgba(79, 70, 229, 0.4);
+  color: #818cf8;
+}
+.btn-download-json:hover {
+  background: rgba(79, 70, 229, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-download-excel {
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.btn-download-excel:hover {
+  transform: translateY(-1px);
+  opacity: 0.9;
+}
+
+.btn-copy-json {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #94a3b8;
+}
+.btn-copy-json:hover {
+  background: rgba(148, 163, 184, 0.2);
+  transform: translateY(-1px);
+}
+.btn-copy-json.copied {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #4ade80;
+}
+
+/* 다이어그램 영역 */
+.viz-diagram {
+  flex: 1;
+  padding: 1.25rem;
+  overflow: auto;
+  min-height: 250px;
+}
+
+/* JSON 표시 영역 */
+.viz-json {
+  border-top: 1px solid rgba(79, 70, 229, 0.2);
+  flex-shrink: 0;
+  max-height: 220px;
+  display: flex;
+  flex-direction: column;
+}
+
+.json-header {
+  padding: 0.6rem 1.25rem;
+  background: rgba(30, 41, 59, 0.5);
+  border-bottom: 1px solid rgba(79, 70, 229, 0.15);
+  flex-shrink: 0;
+}
+
+.json-header h4 {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.json-content {
+  flex: 1;
+  margin: 0;
+  padding: 0.75rem 1.25rem;
+  overflow: auto;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: #94a3b8;
+  font-family: 'Courier New', Courier, monospace;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 푸터 */
+.detail-footer {
+  padding: 1rem 1.75rem;
+  border-top: 1px solid rgba(79, 70, 229, 0.2);
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.btn-close-detail {
+  padding: 0.6rem 1.5rem;
+  background: rgba(79, 70, 229, 0.15);
+  border: 1px solid rgba(79, 70, 229, 0.4);
+  border-radius: 7px;
+  color: #818cf8;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-close-detail:hover {
+  background: rgba(79, 70, 229, 0.3);
+  color: #c7d2fe;
+}
+
+/* 데이터 없음 */
+.no-data {
+  text-align: center;
+  color: #64748b;
+  padding: 2rem;
+  font-size: 0.9rem;
+}
+

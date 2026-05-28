@@ -38,6 +38,7 @@ class AnalysisResult(Base):
     swim_lanes = Column(JSON)
     raci = Column(JSON)
     decisions = Column(JSON)
+    system_interfaces = Column(JSON, nullable=True)
     swim_lanes_count = Column(Integer, default=0)
     raci_count = Column(Integer, default=0)
     decisions_count = Column(Integer, default=0)
@@ -66,6 +67,7 @@ class AnalysisResult(Base):
             'swim_lanes': self.swim_lanes,
             'raci': self.raci,
             'decisions': self.decisions,
+            'system_interfaces': self.system_interfaces,
             'created_at': self.created_at.isoformat()
         }
 

@@ -15,7 +15,8 @@ SYSTEM_PROMPT = (
     "1. 프로세스 이름\n"
     "2. Swim Lane (부서/역할별 단계)\n"
     "3. 의사결정 포인트\n"
-    "4. RACI 매트릭스 (책임 담당자)\n\n"
+    "4. RACI 매트릭스 (책임 담당자)\n"
+    "5. 시스템 인터페이스 (연계 또는 사용되는 시스템 간 관계)\n\n"
     "JSON 형식으로만 응답하세요."
 )
 
@@ -47,6 +48,14 @@ JSON_FORMAT = """
       "accountable": "책임",
       "consulted": "상의",
       "informed": "보고"
+    }
+  ],
+  "system_interfaces": [
+    {
+      "system_a": "시스템A",
+      "system_b": "시스템B",
+      "interface_type": "인터페이스 유형",
+      "description": "설명"
     }
   ]
 }"""
@@ -91,7 +100,8 @@ def _merge_results(results: list) -> dict:
         "description": results[0].get("description", ""),
         "swim_lanes": [],
         "decisions": [],
-        "raci": []
+        "raci": [],
+        "system_interfaces": []
     }
     role_map = {}
     decision_offset = 0
@@ -107,6 +117,7 @@ def _merge_results(results: list) -> dict:
             merged["decisions"].append(d)
         decision_offset += len(result.get("decisions", []))
         merged["raci"].extend(result.get("raci", []))
+        merged["system_interfaces"].extend(result.get("system_interfaces", []))
 
     for role, steps in role_map.items():
         for i, step in enumerate(steps, start=1):
@@ -143,7 +154,8 @@ def analyze_regulation(regulation_text: str) -> dict:
                     "description": f"JSON 파싱 실패: {str(e)}",
                     "swim_lanes": [],
                     "decisions": [],
-                    "raci": []
+                    "raci": [],
+                    "system_interfaces": []
                 })
 
         if len(results) == 1:
