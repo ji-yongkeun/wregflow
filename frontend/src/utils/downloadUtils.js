@@ -362,6 +362,647 @@ export const downloadTableAsImage = async (tableElement, filename = 'table.png')
   }
 }
 
+// ── Canvas 헬퍼 ──────────────────────────────────────────────────────────────
+function roundRect(ctx, x, y, w, h, r = 8) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  ctx.lineTo(x + r, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+  ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y)
+  ctx.closePath()
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
+  const chars = Array.from(text)
+  const lines = []
+  let current = ''
+  for (const ch of chars) {
+    const test = current + ch
+    if (ctx.measureText(test).width > maxWidth && current.length > 0) {
+      lines.push(current)
+      if (lines.length >= maxLines) { lines[lines.length - 1] = lines[lines.length - 1].slice(0, -1) + '…'; break }
+      current = ch
+    } else {
+      current = test
+    }
+  }
+  if (current && lines.length < maxLines) lines.push(current)
+  lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight))
+  return lines.length * lineHeight
+}
+
+function arrowHead(ctx, x, y, size = 6) {
+  ctx.beginPath()
+  ctx.moveTo(x, y)
+  ctx.lineTo(x - size, y - size * 0.6)
+  ctx.lineTo(x - size, y + size * 0.6)
+  ctx.closePath()
+  ctx.fill()
+}
+
+// ── Canvas PNG 공통 다운로드 ──────────────────────────────────────────────────
+function canvasDownload(canvas, filename) {
+  const a = document.createElement('a')
+  a.href = canvas.toDataURL('image/png')
+  a.download = filename
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+}
+
+// RACI 매트릭스 PPT
+export const downloadRaciPPT = async (raciData, processName, filename) => {
+  try {
+    const data = typeof raciData === 'string' ? JSON.parse(raciData) : raciData
+    if (!data?.length) { alert('RACI 데이터가 없습니다'); return }
+
+    const pptxgen = (await import('pptxgenjs')).default
+    const pptx = new pptxgen()
+    pptx.layout = 'LAYOUT_WIDE'
+    pptx.title = 'RACI Matrix'
+
+    const slide = pptx.addSlide()
+    slide.background = { fill: '0A0F1E' }
+
+    const M  = 0.25
+    const FONT = 'Malgun Gothic'
+    const TITLE_H = 0.45
+
+    // 알려진 키 순서 + 동적 추가 키
+    const ORDERED = ['task','responsible','accountable','consulted','informed']
+    const LABELS  = { task:'작업', responsible:'R (수행)', accountable:'A (책임)', consulted:'C (합의)', informed:'I (보고)' }
+    const allKeys = [...new Set(data.flatMap(r => Object.keys(r)))]
+    const keys = [...ORDERED.filter(k => allKeys.includes(k)), ...allKeys.filter(k => !ORDERED.includes(k))]
+
+    // 컬럼 너비 배분 (task는 넓게, 나머지 균등)
+    const slideW  = 13.33 - M * 2
+    const taskW   = keys.includes('task') ? 3.5 : 0
+    const otherW  = keys.length > 1 ? (slideW - taskW) / (keys.length - (keys.includes('task') ? 1 : 0)) : slideW
+    const colWidths = keys.map(k => k === 'task' ? taskW : otherW)
+
+    const HDR_H  = 0.42
+    const ROW_H  = 0.52
+
+    // 제목
+    slide.addText(processName ? `${processName} — RACI 매트릭스` : 'RACI 매트릭스', {
+      x: M, y: M * 0.4, w: slideW, h: TITLE_H,
+      fontSize: 18, bold: true, color: '93C5FD', fontFace: FONT, align: 'left',
+    })
+
+    const tableY = M + TITLE_H
+
+    // 헤더 행
+    let cx = M
+    keys.forEach((k, i) => {
+      slide.addShape(pptx.ShapeType.rect, {
+        x: cx, y: tableY, w: colWidths[i], h: HDR_H,
+        fill: { color: '1E3A8A' }, line: { color: '4F46E5', width: 0.8 },
+      })
+      slide.addText(LABELS[k] || k, {
+        x: cx, y: tableY, w: colWidths[i], h: HDR_H,
+        fontSize: 10, bold: true, color: '93C5FD', fontFace: FONT,
+        align: 'center', valign: 'middle',
+      })
+      cx += colWidths[i]
+    })
+
+    // 데이터 행
+    data.forEach((row, ri) => {
+      const rowY = tableY + HDR_H + ri * ROW_H
+      const bg = ri % 2 === 0 ? '0F172A' : '1E293B'
+      let dx = M
+      keys.forEach((k, ci) => {
+        const val = row[k]
+        const text = val === null || val === undefined ? '-'
+          : typeof val === 'object' ? JSON.stringify(val) : String(val)
+        slide.addShape(pptx.ShapeType.rect, {
+          x: dx, y: rowY, w: colWidths[ci], h: ROW_H,
+          fill: { color: bg }, line: { color: '1E3A5F', width: 0.4 },
+        })
+        slide.addText(text, {
+          x: dx + 0.06, y: rowY, w: colWidths[ci] - 0.12, h: ROW_H,
+          fontSize: ci === 0 ? 10 : 9,
+          bold: ci === 0,
+          color: ci === 0 ? 'E2E8F0' : 'CBD5E1',
+          fontFace: FONT,
+          align: ci === 0 ? 'left' : 'center',
+          valign: 'middle',
+          wrap: true,
+        })
+        dx += colWidths[ci]
+      })
+    })
+
+    const dateStr = new Date().toISOString().slice(0, 10)
+    await pptx.writeFile({ fileName: filename || `raci_${dateStr}.pptx` })
+  } catch (err) {
+    console.error('RACI PPT 저장 실패:', err)
+    alert('RACI PPT 저장에 실패했습니다: ' + err.message)
+  }
+}
+
+// 의사결정 포인트 PPT
+export const downloadDecisionsPPT = async (decisionsData, processName, filename) => {
+  try {
+    const data = typeof decisionsData === 'string' ? JSON.parse(decisionsData) : decisionsData
+    if (!data?.length) { alert('의사결정 데이터가 없습니다'); return }
+
+    const pptxgen = (await import('pptxgenjs')).default
+    const pptx = new pptxgen()
+    pptx.layout = 'LAYOUT_WIDE'
+    pptx.title = '의사결정 포인트'
+
+    const slide = pptx.addSlide()
+    slide.background = { fill: '0A0F1E' }
+
+    const M    = 0.25
+    const FONT = 'Malgun Gothic'
+    const TITLE_H = 0.45
+    const slideW  = 13.33 - M * 2
+
+    slide.addText(processName ? `${processName} — 의사결정 포인트` : '의사결정 포인트', {
+      x: M, y: M * 0.4, w: slideW, h: TITLE_H,
+      fontSize: 18, bold: true, color: '93C5FD', fontFace: FONT, align: 'left',
+    })
+
+    // 표 형태 (No. / 질문 / YES / NO)
+    const COLS = [0.5, 3.8, 4.3, 4.2]   // No. | 질문 | YES | NO
+    const HDR_H = 0.42
+    const ROW_H = 0.65
+    const tableY = M + TITLE_H
+    const headers = [{ label:'No.', color:'A5B4FC' }, { label:'질문', color:'93C5FD' }, { label:'✓ YES 결과', color:'4ADE80' }, { label:'✗ NO 결과', color:'F87171' }]
+
+    let cx = M
+    headers.forEach(({ label, color }, i) => {
+      slide.addShape(pptx.ShapeType.rect, {
+        x: cx, y: tableY, w: COLS[i], h: HDR_H,
+        fill: { color: '1E3A8A' }, line: { color: '4F46E5', width: 0.8 },
+      })
+      slide.addText(label, {
+        x: cx, y: tableY, w: COLS[i], h: HDR_H,
+        fontSize: 10, bold: true, color, fontFace: FONT, align: 'center', valign: 'middle',
+      })
+      cx += COLS[i]
+    })
+
+    data.forEach((d, di) => {
+      const rowY = tableY + HDR_H + di * ROW_H
+      const bg = di % 2 === 0 ? '0F172A' : '1E293B'
+      const cells = [
+        { text: String(d.id || di + 1), color: 'A5B4FC', align: 'center', bold: true },
+        { text: d.question || '-', color: 'F8FAFC', align: 'left', bold: true },
+        { text: d.yes_outcome || d.yesOutcome || '-', color: '4ADE80', align: 'left', bold: false },
+        { text: d.no_outcome  || d.noOutcome  || '-', color: 'F87171', align: 'left', bold: false },
+      ]
+      let dx = M
+      cells.forEach((cell, ci) => {
+        slide.addShape(pptx.ShapeType.rect, {
+          x: dx, y: rowY, w: COLS[ci], h: ROW_H,
+          fill: { color: bg }, line: { color: '1E3A5F', width: 0.4 },
+        })
+        slide.addText(cell.text, {
+          x: dx + 0.06, y: rowY, w: COLS[ci] - 0.12, h: ROW_H,
+          fontSize: 9, bold: cell.bold, color: cell.color,
+          fontFace: FONT, align: cell.align, valign: 'middle', wrap: true,
+        })
+        dx += COLS[ci]
+      })
+    })
+
+    const dateStr = new Date().toISOString().slice(0, 10)
+    await pptx.writeFile({ fileName: filename || `decisions_${dateStr}.pptx` })
+  } catch (err) {
+    console.error('의사결정 PPT 저장 실패:', err)
+    alert('의사결정 PPT 저장에 실패했습니다: ' + err.message)
+  }
+}
+
+// Swim Lane Canvas PNG (JSON 미포함)
+export const downloadSwimlaneImage = (swimData, processName, _unused, filename) => {
+  const SC    = 2
+  const MG    = 36
+  const HDR_W = 188
+  const LANE_H = 150
+  const STEP_W = 230
+  const CARD_H = 98
+  const CMGX  = 14
+  const CARD_W = STEP_W - CMGX * 2
+  const FONT   = '"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",sans-serif'
+
+  let maxOrder = 1
+  swimData.forEach(l => l.steps?.forEach(s => { if ((s.order||1) > maxOrder) maxOrder = s.order }))
+
+  const totalW   = MG * 2 + HDR_W + maxOrder * STEP_W + 10
+  const diagramH = swimData.length * LANE_H
+  const titleH   = 56
+  const legendH  = 44
+  const totalH   = MG + titleH + diagramH + legendH + MG
+
+  const canvas = document.createElement('canvas')
+  canvas.width = totalW * SC; canvas.height = totalH * SC
+  const ctx = canvas.getContext('2d')
+  ctx.scale(SC, SC)
+
+  ctx.fillStyle = '#0A0F1E'; ctx.fillRect(0, 0, totalW, totalH)
+
+  // 제목
+  ctx.fillStyle = '#93C5FD'; ctx.font = `bold 22px ${FONT}`
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+  ctx.fillText(processName || 'Swim Lane 다이어그램', MG, MG + titleH / 2)
+
+  const startY = MG + titleH
+
+  swimData.forEach((lane, li) => {
+    const lY = startY + li * LANE_H
+
+    ctx.fillStyle = li % 2 === 0 ? '#1E293B' : '#0F172A'
+    ctx.fillRect(MG, lY, totalW - MG * 2, LANE_H)
+    ctx.strokeStyle = '#1E3A5F'; ctx.lineWidth = 0.6
+    ctx.strokeRect(MG, lY, totalW - MG * 2, LANE_H)
+
+    const hX = MG + 6, hY = lY + (LANE_H - CARD_H) / 2, hW = HDR_W - 14
+    roundRect(ctx, hX, hY, hW, CARD_H, 10)
+    ctx.fillStyle = '#0F172A'; ctx.fill()
+    ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 1.5; ctx.stroke()
+    ctx.fillStyle = '#93C5FD'
+    ctx.font = `bold ${lane.role.length > 14 ? 10 : 12}px ${FONT}`
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    drawWrappedText(ctx, lane.role, hX + hW / 2, hY + CARD_H / 2 - 8, hW - 10, 15, 3)
+
+    ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 0.8
+    ctx.beginPath(); ctx.moveTo(MG + HDR_W, lY); ctx.lineTo(MG + HDR_W, lY + LANE_H); ctx.stroke()
+
+    const sorted = [...(lane.steps || [])].sort((a, b) => (a.order||0) - (b.order||0))
+    sorted.forEach((step, si) => {
+      const lo = step.order || si + 1
+      const cX = MG + HDR_W + (lo - 1) * STEP_W + CMGX
+      const cY = lY + (LANE_H - CARD_H) / 2
+      const isDec = step.decision === true
+
+      roundRect(ctx, cX, cY, CARD_W, CARD_H, 10)
+      ctx.fillStyle = isDec ? '#B45309' : '#312E81'; ctx.fill()
+      ctx.strokeStyle = isDec ? '#FCD34D' : '#818CF8'; ctx.lineWidth = 1.5; ctx.stroke()
+
+      ctx.fillStyle = isDec ? '#FCD34D' : '#A5B4FC'
+      ctx.font = `bold 9px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'
+      ctx.fillText(isDec ? '⚡ 의사결정' : `STEP ${lo}`, cX + CARD_W / 2, cY + 7)
+
+      ctx.fillStyle = isDec ? '#FEF3C7' : '#E0E7FF'
+      ctx.font = `bold 12px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'
+      drawWrappedText(ctx, step.action, cX + CARD_W / 2, cY + 24, CARD_W - 10, 15, 4)
+
+      if (si < sorted.length - 1) {
+        const ax = cX + CARD_W, ex = cX + STEP_W - CMGX, ay = lY + LANE_H / 2
+        ctx.strokeStyle = '#6366F1'; ctx.lineWidth = 2
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ex - 6, ay); ctx.stroke()
+        ctx.fillStyle = '#6366F1'; arrowHead(ctx, ex, ay)
+      }
+    })
+  })
+
+  // 범례
+  const legY = startY + diagramH + 12
+  roundRect(ctx, MG, legY + 4, 32, 18, 4)
+  ctx.fillStyle = '#312E81'; ctx.fill(); ctx.strokeStyle = '#818CF8'; ctx.lineWidth = 1; ctx.stroke()
+  ctx.fillStyle = '#CBD5E1'; ctx.font = `12px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+  ctx.fillText('일반 프로세스', MG + 38, legY + 13)
+
+  roundRect(ctx, MG + 160, legY + 4, 32, 18, 4)
+  ctx.fillStyle = '#B45309'; ctx.fill(); ctx.strokeStyle = '#FCD34D'; ctx.lineWidth = 1; ctx.stroke()
+  ctx.fillStyle = '#CBD5E1'; ctx.fillText('의사결정 포인트', MG + 198, legY + 13)
+
+  canvasDownload(canvas, filename || `swimlane_${new Date().toISOString().slice(0,10)}.png`)
+}
+
+// RACI 매트릭스 Canvas PNG
+export const downloadRaciImage = (raciData, processName, filename) => {
+  const data = typeof raciData === 'string' ? JSON.parse(raciData) : raciData
+  if (!data?.length) { alert('RACI 데이터가 없습니다'); return }
+
+  const SC   = 2
+  const MG   = 36
+  const FONT = '"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",sans-serif'
+  const COLS = [320, 120, 120, 180, 150]   // 작업, R, A, C, I
+  const HDR_H = 46
+  const titleH = 56
+
+  // 행 높이: 긴 텍스트는 2줄까지 허용 → 고정 72px
+  const ROW_H = 72
+  const totalW = MG * 2 + COLS.reduce((s, c) => s + c, 0)
+  const totalH = MG + titleH + HDR_H + data.length * ROW_H + MG
+
+  const canvas = document.createElement('canvas')
+  canvas.width = totalW * SC; canvas.height = totalH * SC
+  const ctx = canvas.getContext('2d')
+  ctx.scale(SC, SC)
+
+  ctx.fillStyle = '#0A0F1E'; ctx.fillRect(0, 0, totalW, totalH)
+
+  // 제목
+  ctx.fillStyle = '#93C5FD'; ctx.font = `bold 22px ${FONT}`
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+  ctx.fillText(processName ? `${processName} — RACI 매트릭스` : 'RACI 매트릭스', MG, MG + titleH / 2)
+
+  const tableY = MG + titleH
+  const headers = ['작업', 'R (수행)', 'A (책임)', 'C (합의)', 'I (보고)']
+
+  // 헤더 행
+  let cx = MG
+  headers.forEach((h, i) => {
+    ctx.fillStyle = '#1E3A8A'; ctx.fillRect(cx, tableY, COLS[i], HDR_H)
+    ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 0.8; ctx.strokeRect(cx, tableY, COLS[i], HDR_H)
+    ctx.fillStyle = '#93C5FD'; ctx.font = `bold 12px ${FONT}`
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText(h, cx + COLS[i] / 2, tableY + HDR_H / 2)
+    cx += COLS[i]
+  })
+
+  // 데이터 행
+  data.forEach((item, ri) => {
+    const rowY = tableY + HDR_H + ri * ROW_H
+    const cells = [item.task||'', item.responsible||'', item.accountable||'', item.consulted||'', item.informed||'']
+    let dx = MG
+    cells.forEach((cell, ci) => {
+      ctx.fillStyle = ri % 2 === 0 ? '#0F172A' : '#1E293B'
+      ctx.fillRect(dx, rowY, COLS[ci], ROW_H)
+      ctx.strokeStyle = '#1E3A5F'; ctx.lineWidth = 0.5; ctx.strokeRect(dx, rowY, COLS[ci], ROW_H)
+
+      ctx.fillStyle = ci === 0 ? '#E2E8F0' : '#CBD5E1'
+      ctx.font = `${ci === 0 ? 'bold ' : ''}12px ${FONT}`
+      ctx.textAlign = ci === 0 ? 'left' : 'center'
+      ctx.textBaseline = 'top'
+
+      if (ci === 0) {
+        drawWrappedText(ctx, cell, dx + 10, rowY + (ROW_H - 30) / 2, COLS[ci] - 20, 15, 2)
+      } else {
+        drawWrappedText(ctx, cell, dx + COLS[ci] / 2, rowY + (ROW_H - 15) / 2, COLS[ci] - 10, 14, 2)
+      }
+      dx += COLS[ci]
+    })
+  })
+
+  canvasDownload(canvas, filename || `raci_${new Date().toISOString().slice(0,10)}.png`)
+}
+
+// 의사결정 포인트 Canvas PNG
+export const downloadDecisionsImage = (decisionsData, processName, filename) => {
+  const data = typeof decisionsData === 'string' ? JSON.parse(decisionsData) : decisionsData
+  if (!data?.length) { alert('의사결정 데이터가 없습니다'); return }
+
+  const SC     = 2
+  const MG     = 36
+  const FONT   = '"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",sans-serif'
+  const CARD_W = 880
+  const CARD_MG = 16
+  const titleH = 56
+
+  // 카드 높이: ID행(40) + 구분선(1) + Yes(60) + No(60) + 여백
+  const CARD_H    = 185
+  const CARD_GAP  = 14
+  const totalW    = MG * 2 + CARD_W
+  const totalH    = MG + titleH + data.length * (CARD_H + CARD_GAP) - CARD_GAP + MG
+
+  const canvas = document.createElement('canvas')
+  canvas.width = totalW * SC; canvas.height = totalH * SC
+  const ctx = canvas.getContext('2d')
+  ctx.scale(SC, SC)
+
+  ctx.fillStyle = '#0A0F1E'; ctx.fillRect(0, 0, totalW, totalH)
+
+  // 제목
+  ctx.fillStyle = '#93C5FD'; ctx.font = `bold 22px ${FONT}`
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+  ctx.fillText(processName ? `${processName} — 의사결정 포인트` : '의사결정 포인트', MG, MG + titleH / 2)
+
+  const startY = MG + titleH
+
+  data.forEach((d, di) => {
+    const cY = startY + di * (CARD_H + CARD_GAP)
+
+    // 카드 배경
+    roundRect(ctx, MG, cY, CARD_W, CARD_H, 12)
+    ctx.fillStyle = '#1E293B'; ctx.fill()
+    ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 1.5; ctx.stroke()
+
+    // ID 배지
+    roundRect(ctx, MG + CARD_MG, cY + CARD_MG, 58, 26, 13)
+    ctx.fillStyle = '#312E81'; ctx.fill()
+    ctx.strokeStyle = '#4F46E5'; ctx.lineWidth = 1; ctx.stroke()
+    ctx.fillStyle = '#A5B4FC'; ctx.font = `bold 11px ${FONT}`
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText(`#${d.id || di + 1}`, MG + CARD_MG + 29, cY + CARD_MG + 13)
+
+    // 질문 텍스트
+    ctx.fillStyle = '#F8FAFC'; ctx.font = `bold 14px ${FONT}`
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+    drawWrappedText(ctx, d.question || '', MG + CARD_MG + 68, cY + CARD_MG + 5, CARD_W - 90, 18, 2)
+
+    // 구분선
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 0.6
+    ctx.beginPath(); ctx.moveTo(MG + CARD_MG, cY + 58); ctx.lineTo(MG + CARD_W - CARD_MG, cY + 58); ctx.stroke()
+
+    // Yes 결과
+    roundRect(ctx, MG + CARD_MG, cY + 68, 62, 22, 4)
+    ctx.fillStyle = 'rgba(34,197,94,0.15)'; ctx.fill()
+    ctx.strokeStyle = 'rgba(34,197,94,0.5)'; ctx.lineWidth = 1; ctx.stroke()
+    ctx.fillStyle = '#4ADE80'; ctx.font = `bold 11px ${FONT}`
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText('Yes (✓)', MG + CARD_MG + 31, cY + 79)
+
+    ctx.fillStyle = '#E2E8F0'; ctx.font = `12px ${FONT}`
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+    drawWrappedText(ctx, d.yes_outcome || '-', MG + CARD_MG + 72, cY + 68, CARD_W - 100, 16, 3)
+
+    // No 결과
+    roundRect(ctx, MG + CARD_MG, cY + 122, 62, 22, 4)
+    ctx.fillStyle = 'rgba(239,68,68,0.15)'; ctx.fill()
+    ctx.strokeStyle = 'rgba(239,68,68,0.5)'; ctx.lineWidth = 1; ctx.stroke()
+    ctx.fillStyle = '#F87171'; ctx.font = `bold 11px ${FONT}`
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText('No  (✗)', MG + CARD_MG + 31, cY + 133)
+
+    ctx.fillStyle = '#E2E8F0'; ctx.font = `12px ${FONT}`
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+    drawWrappedText(ctx, d.no_outcome || '-', MG + CARD_MG + 72, cY + 122, CARD_W - 100, 16, 3)
+  })
+
+  canvasDownload(canvas, filename || `decisions_${new Date().toISOString().slice(0,10)}.png`)
+}
+
+// DOM 요소를 PNG 이미지로 다운로드 (React Flow 포함 모든 요소에 사용 가능)
+export const downloadElementAsImage = async (element, filename = 'diagram.png') => {
+  try {
+    if (!element) { alert('캡처할 요소를 찾을 수 없습니다'); return }
+    const html2canvas = (await import('html2canvas')).default
+    const canvas = await html2canvas(element, {
+      backgroundColor: '#0a0f1e',
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+    })
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = filename
+      document.body.appendChild(a); a.click()
+      document.body.removeChild(a); URL.revokeObjectURL(url)
+    }, 'image/png')
+  } catch (err) {
+    console.error('이미지 저장 실패:', err)
+    alert('이미지 저장에 실패했습니다')
+  }
+}
+
+// Swim Lane 데이터를 PPT(pptxgenjs)로 다운로드
+export const downloadSwimlanePPT = async (swimData, processName, filename) => {
+  try {
+    const pptxgen = (await import('pptxgenjs')).default
+    const pptx = new pptxgen()
+    pptx.layout = 'LAYOUT_WIDE'   // 13.33 × 7.5 inches
+    pptx.title = processName || 'Swim Lane Diagram'
+
+    const slide = pptx.addSlide()
+    slide.background = { fill: '0A0F1E' }
+
+    // ── 레이아웃 상수 (인치) ──
+    const M       = 0.25   // 외부 여백
+    const TITLE_H = 0.45
+    const HDR_W   = 1.55   // 레인 헤더 너비
+    const LANE_H  = 1.10   // 레인 높이
+    const STEP_W  = 1.90   // 스텝 셀 너비
+    const CARD_H  = 0.82   // 카드 높이
+    const CARD_MX = 0.12   // 카드 좌우 여백
+    const CARD_W  = STEP_W - CARD_MX * 2
+
+    // 최대 로컬 order 계산
+    let maxOrder = 1
+    swimData.forEach(lane => {
+      lane.steps?.forEach(s => { if ((s.order || 1) > maxOrder) maxOrder = s.order })
+    })
+
+    const totalW  = HDR_W + maxOrder * STEP_W + 0.3
+    const startY  = M + TITLE_H
+
+    // ── 제목 ──
+    slide.addText(processName || 'Swim Lane 다이어그램', {
+      x: M, y: M * 0.4, w: totalW, h: TITLE_H,
+      fontSize: 18, bold: true, color: '93C5FD',
+      fontFace: 'Malgun Gothic', align: 'left',
+    })
+
+    // ── 레인별 렌더링 ──
+    swimData.forEach((lane, li) => {
+      const lY = startY + li * LANE_H
+      const bgFill = li % 2 === 0 ? '1E293B' : '0F172A'
+
+      // 레인 배경
+      slide.addShape(pptx.ShapeType.rect, {
+        x: M, y: lY, w: totalW, h: LANE_H,
+        fill: { color: bgFill },
+        line: { color: '1E3A5F', width: 0.4 },
+      })
+
+      // 헤더 구분선
+      slide.addShape(pptx.ShapeType.line, {
+        x: M + HDR_W, y: lY, w: 0, h: LANE_H,
+        line: { color: '4F46E5', width: 0.6 },
+      })
+
+      // 헤더 카드
+      const hX = M + 0.06
+      const hY = lY + (LANE_H - CARD_H) / 2
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: hX, y: hY, w: HDR_W - 0.14, h: CARD_H,
+        fill: { color: '0F172A' },
+        line: { color: '4F46E5', width: 1.5 },
+        arcSize: 8,
+      })
+      slide.addText(lane.role, {
+        x: hX, y: hY, w: HDR_W - 0.14, h: CARD_H,
+        fontSize: lane.role.length > 14 ? 7 : 9,
+        bold: true, color: '93C5FD',
+        align: 'center', valign: 'middle',
+        fontFace: 'Malgun Gothic', wrap: true,
+      })
+
+      // ── 각 스텝 ──
+      const sorted = [...(lane.steps || [])].sort((a, b) => (a.order || 0) - (b.order || 0))
+
+      sorted.forEach((step, si) => {
+        const lo   = step.order || si + 1
+        const cX   = M + HDR_W + (lo - 1) * STEP_W + CARD_MX
+        const cY   = lY + (LANE_H - CARD_H) / 2
+        const isDec = step.decision === true
+
+        // 카드 배경
+        slide.addShape(pptx.ShapeType.roundRect, {
+          x: cX, y: cY, w: CARD_W, h: CARD_H,
+          fill: { color: isDec ? 'B45309' : '312E81' },
+          line: { color: isDec ? 'FCD34D' : '818CF8', width: 1.5 },
+          arcSize: 10,
+        })
+
+        // 상단 배지
+        slide.addText(isDec ? '⚡ 의사결정' : `STEP ${lo}`, {
+          x: cX, y: cY + 0.04, w: CARD_W, h: 0.20,
+          fontSize: 6.5, bold: true,
+          color: isDec ? 'FCD34D' : 'A5B4FC',
+          align: 'center', fontFace: 'Malgun Gothic',
+        })
+
+        // 액션 텍스트
+        slide.addText(step.action, {
+          x: cX + 0.04, y: cY + 0.22, w: CARD_W - 0.08, h: CARD_H - 0.24,
+          fontSize: 8, bold: true,
+          color: isDec ? 'FEF3C7' : 'E0E7FF',
+          align: 'center', valign: 'top',
+          fontFace: 'Malgun Gothic', wrap: true,
+        })
+
+        // 레인 내 화살표 (다음 스텝으로)
+        if (si < sorted.length - 1) {
+          slide.addShape(pptx.ShapeType.line, {
+            x: cX + CARD_W, y: lY + LANE_H / 2,
+            w: STEP_W - CARD_W - CARD_MX, h: 0,
+            line: { color: '6366F1', width: 1.5, endArrowhead: 'arrow' },
+          })
+        }
+      })
+    })
+
+    // ── 범례 ──
+    const legendY = startY + swimData.length * LANE_H + 0.12
+    if (legendY < 7.1) {
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: M, y: legendY, w: 0.42, h: 0.22,
+        fill: { color: '312E81' }, line: { color: '818CF8', width: 1 }, arcSize: 8,
+      })
+      slide.addText('일반 프로세스', {
+        x: M + 0.48, y: legendY, w: 1.2, h: 0.22,
+        fontSize: 8, color: 'CBD5E1', fontFace: 'Malgun Gothic',
+      })
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: M + 2.1, y: legendY, w: 0.42, h: 0.22,
+        fill: { color: 'B45309' }, line: { color: 'FCD34D', width: 1 }, arcSize: 8,
+      })
+      slide.addText('의사결정 포인트', {
+        x: M + 2.58, y: legendY, w: 1.3, h: 0.22,
+        fontSize: 8, color: 'CBD5E1', fontFace: 'Malgun Gothic',
+      })
+    }
+
+    const dateStr = new Date().toISOString().slice(0, 10)
+    await pptx.writeFile({ fileName: filename || `swimlane_${dateStr}.pptx` })
+  } catch (err) {
+    console.error('PPT 저장 실패:', err)
+    alert('PPT 저장에 실패했습니다: ' + err.message)
+  }
+}
+
 // 엑셀 다운로드 공통 요청 함수
 export const downloadProcessExcel = async (payload, type) => {
   try {

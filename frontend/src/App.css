@@ -2337,13 +2337,11 @@ footer {
 /* 분석 상세보기 */
 .analysis-detail-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.95);
+  overflow-y: auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 999;
   padding: 2rem;
@@ -2356,11 +2354,11 @@ footer {
   border-radius: var(--border-radius-lg);
   width: 100%;
   max-width: 1600px;
-  max-height: 85vh;
+  min-height: 60vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   box-shadow: 0 20px 60px rgba(79, 70, 229, 0.3);
+  margin: auto 0;
 }
 
 .detail-header {
@@ -2428,7 +2426,6 @@ footer {
 /* 메인 콘텐츠 */
 .detail-content {
   flex: 1;
-  overflow-y: auto;
   display: grid;
   grid-template-columns: 250px 1fr;
   gap: 1.5rem;
@@ -2504,6 +2501,8 @@ footer {
   border-radius: var(--border-radius-md);
   padding: 1.5rem;
   min-width: 0;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .viz-header {
@@ -2550,8 +2549,7 @@ footer {
   background: #0f172a;
   border-radius: 6px;
   padding: 1rem;
-  max-height: 400px;
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 .viz-diagram svg {
@@ -2589,8 +2587,6 @@ footer {
   margin: 0;
   font-family: 'Courier New', monospace;
   line-height: 1.5;
-  max-height: 300px;
-  overflow-y: auto;
 }
 
 /* 데이터 없음 */
@@ -2807,6 +2803,7 @@ footer {
 }
 
 .btn-download-image,
+.btn-download-ppt,
 .btn-download-csv,
 .btn-download-json,
 .btn-copy-json {
@@ -2823,6 +2820,7 @@ footer {
 }
 
 .btn-download-image:hover,
+.btn-download-ppt:hover,
 .btn-download-csv:hover,
 .btn-download-json:hover {
   background: rgba(79, 70, 229, 0.3);
@@ -2841,10 +2839,19 @@ footer {
   border-color: #3b82f6;
   color: #93c5fd;
 }
-
 .btn-download-image:hover {
   background: rgba(59, 130, 246, 0.3);
   border-color: #60a5fa;
+}
+
+.btn-download-ppt {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #a855f7;
+  color: #d8b4fe;
+}
+.btn-download-ppt:hover {
+  background: rgba(168, 85, 247, 0.35);
+  border-color: #c084fc;
 }
 
 .btn-download-csv {
@@ -3227,16 +3234,18 @@ footer {
 
 /* ==================== 분석 상세보기 오버레이 ==================== */
 
+/* 오버레이가 스크롤 → 패널은 콘텐츠 크기만큼 자유롭게 확장 */
 .analysis-detail-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(4px);
   z-index: 1000;
+  overflow-y: auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 2rem 1.5rem;
 }
 
 .analysis-detail-panel {
@@ -3244,12 +3253,12 @@ footer {
   border: 1px solid rgba(79, 70, 229, 0.4);
   border-radius: 14px;
   width: 100%;
-  max-width: 1200px;
-  max-height: 90vh;
+  max-width: 1400px;
+  min-height: 60vh;     /* 최소 높이만 유지, 내용에 따라 자유 확장 */
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+  margin: auto 0;       /* 짧은 콘텐츠일 때 수직 중앙 */
 }
 
 /* 헤더 */
@@ -3319,15 +3328,14 @@ footer {
   margin-right: 0.35rem;
 }
 
-/* 본문 레이아웃 */
+/* 본문 레이아웃 – 높이 제한 없이 자유 확장 */
 .detail-content {
   display: grid;
   grid-template-columns: 200px 1fr;
   flex: 1;
-  overflow: hidden;
 }
 
-/* 좌측 사이드바 */
+/* 좌측 사이드바 – 상단 고정, 스크롤 따라감 */
 .detail-sections {
   padding: 1.25rem 1rem;
   border-right: 1px solid rgba(79, 70, 229, 0.2);
@@ -3335,7 +3343,9 @@ footer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  overflow-y: auto;
+  align-self: start;
+  position: sticky;
+  top: 2rem;
 }
 
 .detail-sections h3 {
@@ -3391,11 +3401,10 @@ footer {
   opacity: 0.7;
 }
 
-/* 우측 시각화 영역 */
+/* 우측 시각화 영역 – 콘텐츠 크기만큼 자유 확장 */
 .detail-visualization {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   background: rgba(15, 23, 42, 0.5);
 }
 
@@ -3426,6 +3435,7 @@ footer {
 
 /* 다운로드 버튼 공통 */
 .btn-download-image,
+.btn-download-ppt,
 .btn-download-csv,
 .btn-download-json,
 .btn-download-excel,
@@ -3447,6 +3457,15 @@ footer {
 }
 .btn-download-image:hover {
   background: rgba(16, 185, 129, 0.3);
+  transform: translateY(-1px);
+}
+.btn-download-ppt {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.4);
+  color: #d8b4fe;
+}
+.btn-download-ppt:hover {
+  background: rgba(168, 85, 247, 0.3);
   transform: translateY(-1px);
 }
 
@@ -3502,17 +3521,14 @@ footer {
 
 /* 다이어그램 영역 */
 .viz-diagram {
-  flex: 1;
   padding: 1.25rem;
-  overflow: auto;
-  min-height: 250px;
+  overflow-x: auto;
 }
 
 /* JSON 표시 영역 */
 .viz-json {
   border-top: 1px solid rgba(79, 70, 229, 0.2);
   flex-shrink: 0;
-  max-height: 220px;
   display: flex;
   flex-direction: column;
 }
@@ -3533,10 +3549,10 @@ footer {
 }
 
 .json-content {
-  flex: 1;
   margin: 0;
   padding: 0.75rem 1.25rem;
-  overflow: auto;
+  overflow-x: auto;   /* 가로만 스크롤, 세로는 전체 표시 */
+  white-space: pre;
   font-size: 0.72rem;
   line-height: 1.5;
   color: #94a3b8;

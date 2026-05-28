@@ -1,54 +1,124 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import SwimlaneDiagram from './SwimlaneDiagram'
 import DecisionTable from './DecisionTable'
-import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage, downloadSingleAnalysisExcel } from '../utils/downloadUtils'
+import { downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadSingleAnalysisExcel, downloadSwimlanePPT, downloadRaciPPT, downloadDecisionsPPT, downloadSwimlaneImage, downloadRaciImage, downloadDecisionsImage } from '../utils/downloadUtils'
 import ExcelDropdownButton from './ExcelDropdownButton'
 
-// RACIMatrix 로컬 컴포넌트 정의
+// 알려진 RACI 컬럼 순서/레이블
+const RACI_COL_ORDER  = ['task','responsible','accountable','consulted','informed']
+const RACI_COL_LABELS = {
+  task:'작업', responsible:'R (수행)', accountable:'A (책임)',
+  consulted:'C (합의)', informed:'I (보고)',
+}
+const RACI_HEADER_COLORS = {
+  task: '#93c5fd', responsible: '#a5b4fc', accountable: '#c4b5fd',
+  consulted: '#86efac', informed: '#fbbf24',
+}
+
 function RACIMatrix({ data }) {
   if (!data || !Array.isArray(data) || data.length === 0) {
     return <p className="no-data">데이터가 없습니다</p>
   }
+
+  // JSON에 있는 모든 키 동적 수집 (알려진 순서 먼저, 나머지 추가)
+  const allKeys = [...new Set(data.flatMap(item => Object.keys(item)))]
+  const orderedKeys = [
+    ...RACI_COL_ORDER.filter(k => allKeys.includes(k)),
+    ...allKeys.filter(k => !RACI_COL_ORDER.includes(k)),
+  ]
+
   return (
-    <table className="raci-table">
-      <thead>
-        <tr>
-          <th>작업</th>
-          <th>R</th>
-          <th>A</th>
-          <th>C</th>
-          <th>I</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((item, idx) => (
-          <tr key={idx}>
-            <td>{item.task}</td>
-            <td>{item.responsible}</td>
-            <td>{item.accountable}</td>
-            <td>{item.consulted}</td>
-            <td>{item.informed}</td>
+    <div style={{ width: '100%', overflowX: 'auto' }}>
+      <table style={{
+        width: '100%',
+        borderCollapse: 'collapse',
+        fontSize: '13px',
+        minWidth: `${orderedKeys.length * 160}px`,
+      }}>
+        <thead>
+          <tr style={{
+            background: 'linear-gradient(135deg, rgba(79,70,229,0.22), rgba(79,70,229,0.06))',
+            borderBottom: '2px solid #4f46e5',
+          }}>
+            {orderedKeys.map(key => (
+              <th key={key} style={{
+                padding: '0.9rem 1rem',
+                textAlign: 'left',
+                color: RACI_HEADER_COLORS[key] || '#93c5fd',
+                fontWeight: '700',
+                whiteSpace: 'nowrap',
+                minWidth: key === 'task' ? '240px' : '120px',
+              }}>
+                {RACI_COL_LABELS[key] || key}
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {data.map((item, idx) => (
+            <tr
+              key={idx}
+              style={{ borderBottom: '1px solid #1e293b', transition: 'background 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(79,70,229,0.06)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              {orderedKeys.map(key => {
+                const val = item[key]
+                const display = val === null || val === undefined ? '-'
+                  : typeof val === 'object' ? JSON.stringify(val)
+                  : String(val)
+                return (
+                  <td key={key} style={{
+                    padding: '0.8rem 1rem',
+                    color: key === 'task' ? '#e2e8f0' : '#94a3b8',
+                    fontWeight: key === 'task' ? '500' : '400',
+                    lineHeight: '1.6',
+                    verticalAlign: 'top',
+                  }}>
+                    {display}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
 export function AnalysisDetailView({ analysis, onClose }) {
   const [selectedTab, setSelectedTab] = useState('swimlane')
   const [copiedJson, setCopiedJson] = useState(false)
-  const swimlaneSvgRef = useRef(null)
-  const raciTableRef = useRef(null)
-  const decisionTableRef = useRef(null)
-
-  // 일괄/오프스크린 이미지 캡처용 Ref
-  const captureSwimlaneRef = useRef(null)
-  const captureRaciRef = useRef(null)
-  const captureDecisionRef = useRef(null)
 
   if (!analysis) {
     return null
+  }
+
+  const handleDownloadImage = () => {
+    const date = new Date().toISOString().slice(0, 10)
+    const parse = v => typeof v === 'string' ? JSON.parse(v) : v
+
+    if (selectedTab === 'swimlane') {
+      downloadSwimlaneImage(parse(analysis.swim_lanes), analysis.process_name, null, `swimlane_${date}.png`)
+    } else if (selectedTab === 'raci') {
+      downloadRaciImage(parse(analysis.raci), analysis.process_name, `raci_${date}.png`)
+    } else if (selectedTab === 'decisions') {
+      downloadDecisionsImage(parse(analysis.decisions), analysis.process_name, `decisions_${date}.png`)
+    }
+  }
+
+  const handleDownloadPPT = async () => {
+    const date = new Date().toISOString().slice(0, 10)
+    const parse = v => typeof v === 'string' ? JSON.parse(v) : v
+
+    if (selectedTab === 'swimlane') {
+      await downloadSwimlanePPT(parse(analysis.swim_lanes), analysis.process_name, `swimlane_${date}.pptx`)
+    } else if (selectedTab === 'raci') {
+      await downloadRaciPPT(parse(analysis.raci), analysis.process_name, `raci_${date}.pptx`)
+    } else if (selectedTab === 'decisions') {
+      await downloadDecisionsPPT(parse(analysis.decisions), analysis.process_name, `decisions_${date}.pptx`)
+    }
   }
 
   const copyToClipboard = (data) => {
@@ -60,30 +130,6 @@ export function AnalysisDetailView({ analysis, onClose }) {
     } catch (err) {
       console.error('클립보드 복사 실패:', err)
       alert('클립보드 복사에 실패했습니다')
-    }
-  }
-
-  const handleDownload = async () => {
-    const currentDate = new Date().toISOString().slice(0, 10)
-    
-    switch(selectedTab) {
-      case 'swimlane':
-        if (captureSwimlaneRef.current) {
-          await downloadTableAsImage(captureSwimlaneRef.current, `swimlane_${currentDate}.png`)
-        }
-        break
-      case 'raci':
-        if (captureRaciRef.current) {
-          await downloadTableAsImage(captureRaciRef.current, `raci_${currentDate}.png`)
-        }
-        break
-      case 'decisions':
-        if (captureDecisionRef.current) {
-          await downloadTableAsImage(captureDecisionRef.current, `decisions_${currentDate}.png`)
-        }
-        break
-      default:
-        break
     }
   }
 
@@ -274,15 +320,22 @@ export function AnalysisDetailView({ analysis, onClose }) {
                 <div className="viz-header">
                   <h3>{currentTab.title}</h3>
                   <div className="download-buttons">
-                    <button 
+                    <button
                       className="btn-download-image"
-                      onClick={handleDownload}
-                      title="다이어그램/테이블을 이미지로 다운로드"
+                      onClick={handleDownloadImage}
+                      title="화면에 보이는 다이어그램을 PNG로 저장"
                     >
                       📥 이미지 저장
                     </button>
+                    <button
+                      className="btn-download-ppt"
+                      onClick={handleDownloadPPT}
+                      title="현재 탭을 PowerPoint 파일로 저장"
+                    >
+                      🖼️ PPT 저장
+                    </button>
                     {(selectedTab === 'raci' || selectedTab === 'decisions') && (
-                      <button 
+                      <button
                         className="btn-download-csv"
                         onClick={handleDownloadCsv}
                         title="데이터를 CSV로 다운로드"
@@ -290,7 +343,7 @@ export function AnalysisDetailView({ analysis, onClose }) {
                         📊 CSV 저장
                       </button>
                     )}
-                    <button 
+                    <button
                       className="btn-download-json"
                       onClick={handleDownloadJson}
                       title="JSON 데이터를 파일로 다운로드"
@@ -298,22 +351,19 @@ export function AnalysisDetailView({ analysis, onClose }) {
                       💾 JSON 저장
                     </button>
                     <ExcelDropdownButton onSelect={handleDownloadProcessExcel} />
-                    <button 
+                    <button
                       className={`btn-copy-json ${copiedJson ? 'copied' : ''}`}
                       onClick={() => copyToClipboard(currentTab.data)}
                       title="JSON을 클립보드에 복사"
                     >
-                      {copiedJson ? '✓ 복사됨' : '📋 복사'}
+                      {copiedJson ? '✓ 복사됨' : '📋 JSON 복사'}
                     </button>
                   </div>
                 </div>
 
                 {/* 시각화 */}
                 {currentTab.component && (
-                  <div 
-                    className="viz-diagram"
-                    ref={selectedTab === 'swimlane' ? swimlaneSvgRef : selectedTab === 'raci' ? raciTableRef : decisionTableRef}
-                  >
+                  <div className="viz-diagram">
                     {currentTab.component}
                   </div>
                 )}
@@ -333,50 +383,6 @@ export function AnalysisDetailView({ analysis, onClose }) {
                 <p>데이터를 선택해주세요</p>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* 캡처를 위한 오프스크린(숨겨진) 렌더링 컨테이너 */}
-        <div style={{ position: 'fixed', top: 0, left: '-99999px', width: '3000px', height: '3000px', pointerEvents: 'none', zIndex: -9999 }}>
-          <div ref={captureSwimlaneRef} style={{ width: 'max-content', minWidth: '1200px', background: '#0f172a', padding: '20px', borderRadius: '8px' }}>
-            <h3 style={{ color: '#93c5fd', marginBottom: '15px' }}>🏊 Swim Lane 다이어그램</h3>
-            <SwimlaneDiagram 
-              data={
-                typeof analysis.swim_lanes === 'string' 
-                  ? JSON.parse(analysis.swim_lanes)
-                  : analysis.swim_lanes
-              }
-              raci={
-                typeof analysis.raci === 'string'
-                  ? JSON.parse(analysis.raci)
-                  : analysis.raci
-              }
-              decisions={
-                typeof analysis.decisions === 'string'
-                  ? JSON.parse(analysis.decisions)
-                  : analysis.decisions
-              }
-            />
-          </div>
-          <div ref={captureRaciRef} style={{ width: '800px', background: '#0f172a', padding: '20px', borderRadius: '8px' }}>
-            <h3 style={{ color: '#93c5fd', marginBottom: '15px' }}>👥 RACI 매트릭스</h3>
-            <RACIMatrix 
-              data={
-                typeof analysis.raci === 'string' 
-                  ? JSON.parse(analysis.raci)
-                  : analysis.raci
-              }
-            />
-          </div>
-          <div ref={captureDecisionRef} style={{ width: '900px', background: '#0f172a', padding: '20px', borderRadius: '8px' }}>
-            <h3 style={{ color: '#93c5fd', marginBottom: '15px' }}>⚡ 의사결정 포인트</h3>
-            <DecisionTable 
-              data={
-                typeof analysis.decisions === 'string' 
-                  ? JSON.parse(analysis.decisions)
-                  : analysis.decisions
-              }
-            />
           </div>
         </div>
 
