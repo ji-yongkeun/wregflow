@@ -3,6 +3,7 @@ import SwimlaneDiagram from './SwimlaneDiagram'
 import DecisionTable from './DecisionTable'
 import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage, downloadSingleAnalysisExcel } from '../utils/downloadUtils'
 import PermissionGuard from './PermissionGuard'
+import ExcelDropdownButton from './ExcelDropdownButton'
 
 export function MultiFileAnalysis({ analyses, fileNames }) {
   const [activeFileIndex, setActiveFileIndex] = useState(0)
@@ -118,12 +119,8 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
     }
   }
 
-  const handleDownloadExcelFS = () => {
-    downloadSingleAnalysisExcel(currentAnalysis, 'fs')
-  }
-
-  const handleDownloadExcelFT = () => {
-    downloadSingleAnalysisExcel(currentAnalysis, 'ft')
+  const handleDownloadExcel = (type) => {
+    downloadSingleAnalysisExcel(currentAnalysis, type)
   }
 
   const renderContent = () => {
@@ -232,22 +229,7 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
             >
               💾 JSON 저장
             </button>
-            <button 
-              className="btn-download-excel"
-              style={{ background: '#3730a3', color: '#ffffff', borderColor: '#4f46e5', marginLeft: '5px' }}
-              onClick={handleDownloadExcelFS}
-              title="전체 프로세스를 FS(기능정의) 기준 엑셀로 다운로드"
-            >
-              📊 엑셀 저장 (FS 기준)
-            </button>
-            <button 
-              className="btn-download-excel"
-              style={{ background: '#b45309', color: '#ffffff', borderColor: '#d97706', marginLeft: '5px' }}
-              onClick={handleDownloadExcelFT}
-              title="전체 프로세스를 FT(테스트시나리오) 기준 엑셀로 다운로드"
-            >
-              📊 엑셀 저장 (FT 기준)
-            </button>
+            <ExcelDropdownButton onSelect={handleDownloadExcel} />
             <button 
               className={`btn-copy-json ${copiedJson ? 'copied' : ''}`}
               onClick={() => copyToClipboard(

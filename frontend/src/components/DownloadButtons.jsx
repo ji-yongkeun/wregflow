@@ -5,6 +5,7 @@ import {
   downloadReport,
   downloadSingleAnalysisExcel
 } from '../utils/downloadUtils'
+import ExcelDropdownButton from './ExcelDropdownButton'
 
 export function DownloadButtons({ analysis, mermaidCode }) {
   const handleDownloadJSON = () => {
@@ -27,12 +28,8 @@ export function DownloadButtons({ analysis, mermaidCode }) {
     downloadReport(analysis, `analysis_report_${Date.now()}.txt`)
   }
 
-  const handleDownloadExcelFS = () => {
-    downloadSingleAnalysisExcel(analysis, 'fs')
-  }
-
-  const handleDownloadExcelFT = () => {
-    downloadSingleAnalysisExcel(analysis, 'ft')
+  const handleDownloadExcel = (type) => {
+    downloadSingleAnalysisExcel(analysis, type)
   }
 
   return (
@@ -46,22 +43,7 @@ export function DownloadButtons({ analysis, mermaidCode }) {
         >
           📄 JSON
         </button>
-        <button
-          onClick={handleDownloadExcelFS}
-          className="btn-download"
-          style={{ background: '#3730a3', color: '#ffffff', borderColor: '#4f46e5' }}
-          title="FS(기능정의) 기준 엑셀 다운로드"
-        >
-          📊 엑셀 (FS)
-        </button>
-        <button
-          onClick={handleDownloadExcelFT}
-          className="btn-download"
-          style={{ background: '#b45309', color: '#ffffff', borderColor: '#d97706' }}
-          title="FT(테스트시나리오) 기준 엑셀 다운로드"
-        >
-          📊 엑셀 (FT)
-        </button>
+        <ExcelDropdownButton onSelect={handleDownloadExcel} />
         <button
           onClick={handleDownloadCSV}
           className="btn-download"

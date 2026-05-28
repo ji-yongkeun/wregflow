@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import SwimlaneDiagram from './SwimlaneDiagram'
 import DecisionTable from './DecisionTable'
 import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage, downloadSingleAnalysisExcel } from '../utils/downloadUtils'
+import ExcelDropdownButton from './ExcelDropdownButton'
 
 // RACIMatrix 로컬 컴포넌트 정의
 function RACIMatrix({ data }) {
@@ -296,22 +297,7 @@ export function AnalysisDetailView({ analysis, onClose }) {
                     >
                       💾 JSON 저장
                     </button>
-                    <button 
-                      className="btn-download-excel"
-                      style={{ background: '#3730a3', color: '#ffffff', borderColor: '#4f46e5', marginLeft: '5px' }}
-                      onClick={() => handleDownloadProcessExcel('fs')}
-                      title="전체 프로세스를 FS(기능정의) 기준 엑셀로 다운로드"
-                    >
-                      📊 엑셀 저장 (FS 기준)
-                    </button>
-                    <button 
-                      className="btn-download-excel"
-                      style={{ background: '#b45309', color: '#ffffff', borderColor: '#d97706', marginLeft: '5px' }}
-                      onClick={() => handleDownloadProcessExcel('ft')}
-                      title="전체 프로세스를 FT(테스트시나리오) 기준 엑셀로 다운로드"
-                    >
-                      📊 엑셀 저장 (FT 기준)
-                    </button>
+                    <ExcelDropdownButton onSelect={handleDownloadProcessExcel} />
                     <button 
                       className={`btn-copy-json ${copiedJson ? 'copied' : ''}`}
                       onClick={() => copyToClipboard(currentTab.data)}

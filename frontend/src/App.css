@@ -3578,3 +3578,101 @@ footer {
   font-size: 0.9rem;
 }
 
+/* ==================== 엑셀 드롭다운 버튼 ==================== */
+
+.btn-excel-dropdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #4f46e5;
+  background: linear-gradient(135deg, #3730a3 0%, #4f46e5 100%);
+  color: #ffffff;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.btn-excel-dropdown:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+}
+
+.btn-excel-caret {
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.btn-excel-caret.open {
+  transform: rotate(180deg);
+}
+
+.excel-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 9999;
+  background: #1e293b;
+  border: 1px solid rgba(79, 70, 229, 0.4);
+  border-radius: 10px;
+  padding: 0.4rem;
+  min-width: 200px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(79, 70, 229, 0.1);
+  animation: dropdownFadeIn 0.15s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.excel-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+}
+
+.excel-dropdown-item:hover {
+  background: rgba(79, 70, 229, 0.15);
+}
+
+.excel-dropdown-item .item-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.excel-dropdown-item .item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.excel-dropdown-item .item-info strong {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #e0e7ff;
+}
+
+.excel-dropdown-item .item-info small {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.excel-fs .item-info strong { color: #a5b4fc; }
+.excel-ft .item-info strong { color: #fcd34d; }
+
+
