@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import SwimlaneDiagram from './SwimlaneDiagram'
 import DecisionTable from './DecisionTable'
 import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage } from '../utils/downloadUtils'
@@ -55,13 +55,11 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
       setTimeout(() => setCopiedJson(false), 2000)
     } catch (err) {
       console.error('클립보드 복사 실패:', err)
-      alert('클립보드 복사에 실패했습니다')
     }
   }
 
   const handleDownload = async () => {
     const currentDate = new Date().toISOString().slice(0, 10)
-    const tabName = selectedTab === 'swimlane' ? 'swimlane' : selectedTab === 'raci' ? 'raci' : 'decisions'
     
     switch(selectedTab) {
       case 'swimlane':
@@ -116,7 +114,6 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
         downloadDecisionsAsCsv(currentAnalysis.decisions, `decisions_${currentDate}.csv`)
         break
       default:
-        alert('이 탭에서는 CSV 다운로드를 지원하지 않습니다')
         break
     }
   }
@@ -126,7 +123,17 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
       case 'swimlane':
         return (
           <div className="swimlane-viz">
-            <SwimlaneDiagram analysis={currentAnalysis} />
+            {currentAnalysis.swim_lanes ? (
+              <SwimlaneDiagram 
+                data={
+                  typeof currentAnalysis.swim_lanes === 'string'
+                    ? JSON.parse(currentAnalysis.swim_lanes)
+                    : currentAnalysis.swim_lanes
+                }
+              />
+            ) : (
+              <p className="no-data">Swim Lane 데이터가 없습니다</p>
+            )}
           </div>
         )
       case 'raci':
@@ -138,7 +145,13 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
       case 'decisions':
         return (
           <div className="decisions-viz">
-            <DecisionTable data={currentAnalysis.decisions} />
+            <DecisionTable 
+              data={
+                typeof currentAnalysis.decisions === 'string'
+                  ? JSON.parse(currentAnalysis.decisions)
+                  : currentAnalysis.decisions
+              }
+            />
           </div>
         )
       default:
@@ -159,7 +172,7 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
               title={fileName}
             >
               <span className="file-badge">{idx + 1}</span>
-              <span className="file-name">{fileName}</span>
+              <span className="file-name">편</span>
             </button>
           ))}
         </div>
@@ -220,7 +233,7 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
         </div>
       </div>
 
-      {/* 하단: 탭 선택 카드 */}
+      {/* 하단: 탭 선택 카드 (중복 제거 - 1번만 표시) */}
       <div className="analysis-cards">
         <div 
           className={`card ${selectedTab === 'swimlane' ? 'active' : ''}`}

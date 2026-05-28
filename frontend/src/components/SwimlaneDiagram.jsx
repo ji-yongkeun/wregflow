@@ -3,25 +3,29 @@ import { useMemo } from 'react'
 export function SwimlaneDiagram({ data }) {
   const generateSwimlane = useMemo(() => {
     if (!data) {
+      console.log('SwimlaneDiagram - data is undefined or null')
       return (
         <div style={{
           padding: '2rem',
           textAlign: 'center',
-          color: '#cbd5e1',
-          fontSize: '14px'
+          color: '#cbd5e1'
         }}>
           Swim Lane 데이터가 없습니다
         </div>
       )
     }
 
-    // 데이터 파싱
     let swimData = data
     if (typeof data === 'string') {
       try {
         swimData = JSON.parse(data)
       } catch (e) {
-        swimData = data
+        console.error('SwimlaneDiagram - JSON parse error:', e)
+        return (
+          <div style={{ color: '#ef4444', padding: '2rem' }}>
+            데이터 파싱 오류: {e.message}
+          </div>
+        )
       }
     }
 
