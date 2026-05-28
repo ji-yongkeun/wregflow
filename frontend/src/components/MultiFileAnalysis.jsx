@@ -1,109 +1,262 @@
 import { useState } from 'react'
 import SwimlaneDiagram from './SwimlaneDiagram'
-import DownloadButtons from './DownloadButtons'
+import DecisionTable from './DecisionTable'
+import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage } from '../utils/downloadUtils'
 import PermissionGuard from './PermissionGuard'
 
 export function MultiFileAnalysis({ analyses, fileNames }) {
-  const [activeIndex, setActiveIndex] = useState(0)
-  const [mermaidCode, setMermaidCode] = useState('')
+  const [activeFileIndex, setActiveFileIndex] = useState(0)
+  const [selectedTab, setSelectedTab] = useState('swimlane')
+  const [copiedJson, setCopiedJson] = useState(false)
 
   if (!analyses || analyses.length === 0) {
     return null
   }
 
-  const currentAnalysis = analyses[activeIndex]
-  const currentFileName = fileNames[activeIndex]
+  const currentAnalysis = analyses[activeFileIndex]
+  const currentFileName = fileNames[activeFileIndex]
+
+  // RACI 로컬 컴포넌트
+  function RACIMatrix({ data }) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return <p className="no-data">데이터가 없습니다</p>
+    }
+    return (
+      <table className="raci-table">
+        <thead>
+          <tr>
+            <th>작업</th>
+            <th>R</th>
+            <th>A</th>
+            <th>C</th>
+            <th>I</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((item, idx) => (
+            <tr key={idx}>
+              <td>{item.task}</td>
+              <td>{item.responsible}</td>
+              <td>{item.accountable}</td>
+              <td>{item.consulted}</td>
+              <td>{item.informed}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )
+  }
+
+  const copyToClipboard = (data) => {
+    try {
+      const jsonString = typeof data === 'string' ? data : JSON.stringify(data, null, 2)
+      navigator.clipboard.writeText(jsonString)
+      setCopiedJson(true)
+      setTimeout(() => setCopiedJson(false), 2000)
+    } catch (err) {
+      console.error('클립보드 복사 실패:', err)
+      alert('클립보드 복사에 실패했습니다')
+    }
+  }
+
+  const handleDownload = async () => {
+    const currentDate = new Date().toISOString().slice(0, 10)
+    const tabName = selectedTab === 'swimlane' ? 'swimlane' : selectedTab === 'raci' ? 'raci' : 'decisions'
+    
+    switch(selectedTab) {
+      case 'swimlane':
+        const swimlaneSvg = document.querySelector('.swimlane-viz svg')
+        if (swimlaneSvg) {
+          await downloadSvgAsImage(swimlaneSvg, `swimlane_${currentDate}.png`)
+        }
+        break
+      case 'raci':
+        const raciTable = document.querySelector('.raci-viz')
+        if (raciTable) {
+          await downloadTableAsImage(raciTable, `raci_${currentDate}.png`)
+        }
+        break
+      case 'decisions':
+        const decisionTable = document.querySelector('.decisions-viz')
+        if (decisionTable) {
+          await downloadTableAsImage(decisionTable, `decisions_${currentDate}.png`)
+        }
+        break
+      default:
+        break
+    }
+  }
+
+  const handleDownloadJson = () => {
+    const currentDate = new Date().toISOString().slice(0, 10)
+    
+    switch(selectedTab) {
+      case 'swimlane':
+        downloadAsJson(currentAnalysis.swim_lanes, `swimlane_${currentDate}.json`)
+        break
+      case 'raci':
+        downloadAsJson(currentAnalysis.raci, `raci_${currentDate}.json`)
+        break
+      case 'decisions':
+        downloadAsJson(currentAnalysis.decisions, `decisions_${currentDate}.json`)
+        break
+      default:
+        break
+    }
+  }
+
+  const handleDownloadCsv = () => {
+    const currentDate = new Date().toISOString().slice(0, 10)
+    
+    switch(selectedTab) {
+      case 'raci':
+        downloadRaciAsCsv(currentAnalysis.raci, `raci_${currentDate}.csv`)
+        break
+      case 'decisions':
+        downloadDecisionsAsCsv(currentAnalysis.decisions, `decisions_${currentDate}.csv`)
+        break
+      default:
+        alert('이 탭에서는 CSV 다운로드를 지원하지 않습니다')
+        break
+    }
+  }
+
+  const renderContent = () => {
+    switch(selectedTab) {
+      case 'swimlane':
+        return (
+          <div className="swimlane-viz">
+            <SwimlaneDiagram analysis={currentAnalysis} />
+          </div>
+        )
+      case 'raci':
+        return (
+          <div className="raci-viz">
+            <RACIMatrix data={currentAnalysis.raci} />
+          </div>
+        )
+      case 'decisions':
+        return (
+          <div className="decisions-viz">
+            <DecisionTable data={currentAnalysis.decisions} />
+          </div>
+        )
+      default:
+        return null
+    }
+  }
 
   return (
     <div className="multi-file-analysis">
-      {/* 탭 네비게이션 */}
-      <div className="analysis-tabs">
-        {fileNames.map((fileName, idx) => (
-          <button
-            key={idx}
-            className={`tab ${activeIndex === idx ? 'active' : ''}`}
-            onClick={() => setActiveIndex(idx)}
-            title={fileName}
-          >
-            {idx + 1}편
-          </button>
-        ))}
+      {/* 상단: 파일 탭 네비게이션 */}
+      <div className="analysis-header">
+        <div className="file-tabs">
+          {fileNames.map((fileName, idx) => (
+            <button
+              key={idx}
+              className={`file-tab ${activeFileIndex === idx ? 'active' : ''}`}
+              onClick={() => setActiveFileIndex(idx)}
+              title={fileName}
+            >
+              <span className="file-badge">{idx + 1}</span>
+              <span className="file-name">{fileName}</span>
+            </button>
+          ))}
+        </div>
+        <div className="file-info">
+          <h3>{currentFileName}</h3>
+          <p className="process-name">{currentAnalysis.process_name}</p>
+        </div>
       </div>
 
-      {/* 현재 선택된 파일의 분석 결과 */}
-      {currentAnalysis && (
-        <>
-          <section className="analysis-section">
-            <div className="process-info">
-              <h3>{currentFileName}</h3>
-              <h2>{currentAnalysis.process_name}</h2>
-              <p>{currentAnalysis.description}</p>
-            </div>
+      {/* 중앙: 선택된 탭의 시각화 */}
+      <div className="analysis-content">
+        <div className="viz-header">
+          <h3>
+            {selectedTab === 'swimlane' && '🏊 Swim Lane 다이어그램'}
+            {selectedTab === 'raci' && '👥 RACI 매트릭스'}
+            {selectedTab === 'decisions' && '⚡ 의사결정 포인트'}
+          </h3>
+          <div className="download-buttons">
+            <button 
+              className="btn-download-image"
+              onClick={handleDownload}
+              title="다이어그램/테이블을 이미지로 다운로드"
+            >
+              📥 이미지 저장
+            </button>
+            {(selectedTab === 'raci' || selectedTab === 'decisions') && (
+              <button 
+                className="btn-download-csv"
+                onClick={handleDownloadCsv}
+                title="데이터를 CSV로 다운로드"
+              >
+                📊 CSV 저장
+              </button>
+            )}
+            <button 
+              className="btn-download-json"
+              onClick={handleDownloadJson}
+              title="JSON 데이터를 파일로 다운로드"
+            >
+              💾 JSON 저장
+            </button>
+            <button 
+              className={`btn-copy-json ${copiedJson ? 'copied' : ''}`}
+              onClick={() => copyToClipboard(
+                selectedTab === 'swimlane' ? currentAnalysis.swim_lanes :
+                selectedTab === 'raci' ? currentAnalysis.raci :
+                currentAnalysis.decisions
+              )}
+              title="JSON을 클립보드에 복사"
+            >
+              {copiedJson ? '✓ 복사됨' : '📋 복사'}
+            </button>
+          </div>
+        </div>
 
-            {/* Swim Lane */}
-            <div className="swimlane-diagram-section">
-              <h3>📊 Swim Lane 다이어그램</h3>
-              <SwimlaneDiagram 
-                analysis={currentAnalysis}
-                onCodeGenerated={setMermaidCode}
-              />
-            </div>
+        <div className="viz-content">
+          {renderContent()}
+        </div>
+      </div>
 
-            {/* RACI */}
-            <div className="raci-section">
-              <h3>👥 RACI 매트릭스</h3>
-              <table className="raci-table">
-                <thead>
-                  <tr>
-                    <th>작업</th>
-                    <th>R</th>
-                    <th>A</th>
-                    <th>C</th>
-                    <th>I</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentAnalysis.raci && currentAnalysis.raci.map((item, idx) => (
-                    <tr key={idx}>
-                      <td>{item.task}</td>
-                      <td>{item.responsible}</td>
-                      <td>{item.accountable}</td>
-                      <td>{item.consulted}</td>
-                      <td>{item.informed}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      {/* 하단: 탭 선택 카드 */}
+      <div className="analysis-cards">
+        <div 
+          className={`card ${selectedTab === 'swimlane' ? 'active' : ''}`}
+          onClick={() => setSelectedTab('swimlane')}
+        >
+          <div className="card-icon">🏊</div>
+          <h4>Swim Lane</h4>
+          <p>부서/역할별 담당 시각화</p>
+        </div>
+        
+        <div 
+          className={`card ${selectedTab === 'raci' ? 'active' : ''}`}
+          onClick={() => setSelectedTab('raci')}
+        >
+          <div className="card-icon">👥</div>
+          <h4>RACI 매트릭스</h4>
+          <p>책임 관계 정의</p>
+        </div>
+        
+        <div 
+          className={`card ${selectedTab === 'decisions' ? 'active' : ''}`}
+          onClick={() => setSelectedTab('decisions')}
+        >
+          <div className="card-icon">⚡</div>
+          <h4>의사결정 맵</h4>
+          <p>의사결정 분기 자동 추출</p>
+        </div>
+      </div>
 
-            {/* 의사결정 */}
-            <div className="decisions-section">
-              <h3>🔀 의사결정 포인트</h3>
-              {currentAnalysis.decisions && currentAnalysis.decisions.map((decision, idx) => (
-                <div key={idx} className="decision-box">
-                  <p className="question">Q: {decision.question}</p>
-                  <div className="outcomes">
-                    <div className="yes">✓ Yes: {decision.yes_outcome}</div>
-                    <div className="no">✗ No: {decision.no_outcome}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* 다운로드 */}
-            <PermissionGuard permission="download">
-              <DownloadButtons 
-                analysis={currentAnalysis}
-                mermaidCode={mermaidCode}
-              />
-            </PermissionGuard>
-          </section>
-        </>
-      )}
-
-      {/* 분석 개수 정보 */}
+      {/* 분석 정보 */}
       <div className="analysis-info">
-        <p>총 {fileNames.length}개 파일 분석 완료 ({activeIndex + 1}/{fileNames.length})</p>
+        <p>
+          파일 {activeFileIndex + 1}/{fileNames.length}
+          <span className="separator">·</span>
+          {currentAnalysis.process_name}
+        </p>
       </div>
     </div>
   )
