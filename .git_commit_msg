@@ -1,0 +1,9 @@
+﻿기능: CORS 설정 추가 및 API 경로 정정
+
+변경사항:
+- backend/main.py: CORS 미들웨어 추가
+- frontend/.env: BASE_URL 수정 (중복 /api 제거)
+
+해결 내용:
+✅ CORS 오류 해결
+✅ API 경로 중복 제거

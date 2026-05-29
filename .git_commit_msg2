@@ -1,0 +1,12 @@
+﻿수정: App.jsx API 경로 수정 (/api 제거)
+
+변경사항:
+- /api/regulations → /regulations
+- baseURL 중복 제거
+
+파일:
+- frontend/src/App.jsx (라인 95, 147, 170, 186)
+
+이유:
+axiosInstance.baseURL이 이미 http://49.50.132.167:8001/api를 포함하므로
+코드에서 /api를 붙이면 중복됨
