@@ -200,18 +200,24 @@ def get_analysis_results(db: Session = Depends(get_db)):
     저장된 분석 결과 목록 조회
     """
     try:
-        results = db.query(AnalysisResult).all()
+        # Join with RegulationFile to get file_name
+        results = db.query(AnalysisResult, RegulationFile).outerjoin(
+            RegulationFile, AnalysisResult.file_id == RegulationFile.file_id
+        ).all()
+        
         return {
             "status": "success",
             "analyses": [
                 {
-                    "id": r.id,
-                    "file_id": r.file_id,
-                    "edition": r.edition,
-                    "swim_lanes_count": r.swim_lanes_count,
-                    "raci_count": r.raci_count,
-                    "decisions_count": r.decisions_count,
-                    "created_at": r.created_at.isoformat() if hasattr(r, 'created_at') else None
+                    "id": r.AnalysisResult.id,
+                    "file_id": r.AnalysisResult.file_id,
+                    "file_name": r.RegulationFile.file_name if r.RegulationFile else r.AnalysisResult.file_id,
+                    "edition": r.AnalysisResult.edition,
+                    "process_name": r.AnalysisResult.process_name,
+                    "swim_lanes_count": r.AnalysisResult.swim_lanes_count,
+                    "raci_count": r.AnalysisResult.raci_count,
+                    "decisions_count": r.AnalysisResult.decisions_count,
+                    "created_at": r.AnalysisResult.created_at.isoformat() if hasattr(r.AnalysisResult, 'created_at') else None
                 }
                 for r in results
             ]
