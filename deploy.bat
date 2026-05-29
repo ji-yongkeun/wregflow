@@ -21,7 +21,7 @@ timeout /t 2
 
 cls
 echo ================================
-echo ✅ Services Started!
+echo ? Services Started!
 echo ================================
 echo.
 echo URLs:
