@@ -5,7 +5,7 @@ import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecision
 import PermissionGuard from './PermissionGuard'
 import ExcelDropdownButton from './ExcelDropdownButton'
 
-export function MultiFileAnalysis({ analyses, fileNames }) {
+export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
   const [activeFileIndex, setActiveFileIndex] = useState(0)
   const [selectedTab, setSelectedTab] = useState('swimlane')
   const [copiedJson, setCopiedJson] = useState(false)
@@ -16,6 +16,7 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
 
   const currentAnalysis = analyses[activeFileIndex]
   const currentFileName = fileNames[activeFileIndex]
+  const currentChapterName = chapterNames ? chapterNames[activeFileIndex] : currentFileName
 
   // RACI 로컬 컴포넌트
   function RACIMatrix({ data }) {
@@ -187,13 +188,12 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
               title={fileName}
             >
               <span className="file-badge">{idx + 1}</span>
-              <span className="file-name">편</span>
+              <span className="file-name" style={{marginLeft: '4px'}}>{fileName}</span>
             </button>
           ))}
         </div>
         <div className="file-info">
-          <h3>{currentFileName}</h3>
-          <p className="process-name">{currentAnalysis.process_name}</p>
+          <h3>{currentChapterName}</h3>
         </div>
       </div>
 
@@ -284,7 +284,7 @@ export function MultiFileAnalysis({ analyses, fileNames }) {
         <p>
           파일 {activeFileIndex + 1}/{fileNames.length}
           <span className="separator">·</span>
-          {currentAnalysis.process_name}
+          {currentChapterName}
         </p>
       </div>
     </div>

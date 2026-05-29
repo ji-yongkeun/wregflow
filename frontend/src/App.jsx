@@ -20,6 +20,7 @@ function AppContent() {
   const [fileGroups, setFileGroups] = useState([])
   const [multipleAnalyses, setMultipleAnalyses] = useState([])
   const [multipleFileNames, setMultipleFileNames] = useState([])
+  const [multipleChapterNames, setMultipleChapterNames] = useState([])
   const [isMultipleMode, setIsMultipleMode] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
@@ -49,7 +50,8 @@ function AppContent() {
         file: file,
         fileName: file.name,
         edition: idx + 1,  // 기본값: 1, 2, 3, ...
-        editionName: `${idx + 1}편`  // 기본값: 1편, 2편, ...
+        editionName: `${idx + 1}편`,  // 기본값: 1편, 2편, ...
+        chapterName: file.name  // 기본값: 파일명
       }))
       
       setFileGroups(groups)
@@ -57,10 +59,11 @@ function AppContent() {
     }
   }
 
-  const updateFileGroup = (index, edition, editionName) => {
+  const updateFileGroup = (index, edition, editionName, chapterName) => {
     const updated = [...fileGroups]
     updated[index].edition = edition
     updated[index].editionName = editionName
+    updated[index].chapterName = chapterName
     setFileGroups(updated)
   }
 
@@ -98,6 +101,7 @@ function AppContent() {
     setAnalysis(null)
     setMultipleAnalyses([])
     setMultipleFileNames([])
+    setMultipleChapterNames([])
     const formData = new FormData()
     formData.append("file", file)
 
@@ -132,11 +136,13 @@ function AppContent() {
     setAnalysis(null)
     setMultipleAnalyses([])
     setMultipleFileNames([])
+    setMultipleChapterNames([])
     
     try {
       const results = []
       const analyses = []
       const fileNames = []
+      const chapterNames = []
       
       // 각 파일 순차 처리
       for (let i = 0; i < fileGroups.length; i++) {
@@ -172,7 +178,8 @@ function AppContent() {
             
             if (analyzeData.status === "success") {
               analyses.push(analyzeData.analysis)
-              fileNames.push(group.editionName)  // edition_name 사용
+              fileNames.push(group.editionName)  // 상단 탭에 표시할 '편' 이름
+              chapterNames.push(group.chapterName) // 파일/장 이름
               
               results.push({
                 file_name: file.name,
@@ -200,6 +207,7 @@ function AppContent() {
       // Step 3: 결과 저장
       setMultipleAnalyses(analyses)
       setMultipleFileNames(fileNames)
+      setMultipleChapterNames(chapterNames)
       
       setResult({
         status: "complete",
@@ -321,6 +329,7 @@ function AppContent() {
           <MultiFileAnalysis 
             analyses={multipleAnalyses} 
             fileNames={multipleFileNames}
+            chapterNames={multipleChapterNames}
           />
         ) : analysis ? (
           <>

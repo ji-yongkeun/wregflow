@@ -30,6 +30,9 @@ export function FileGroupEditor({ fileGroups, onUpdateFileGroup, onRemoveFileGro
                 <span className="preview-name">
                   {group.editionName || '(이름 미입력)'}
                 </span>
+                <span className="preview-chapter" style={{marginLeft: '10px', fontSize: '0.9em', color: '#888'}}>
+                  {group.chapterName || '(장/문서 미입력)'}
+                </span>
                 <span className="expand-icon">
                   {expandedIndex === idx ? '▼' : '▶'}
                 </span>
@@ -48,7 +51,8 @@ export function FileGroupEditor({ fileGroups, onUpdateFileGroup, onRemoveFileGro
                       onChange={(e) => onUpdateFileGroup(
                         idx,
                         parseInt(e.target.value) || 1,
-                        group.editionName
+                        group.editionName,
+                        group.chapterName
                       )}
                       placeholder="예: 1, 2, 3"
                     />
@@ -62,9 +66,25 @@ export function FileGroupEditor({ fileGroups, onUpdateFileGroup, onRemoveFileGro
                       onChange={(e) => onUpdateFileGroup(
                         idx,
                         group.edition,
-                        e.target.value
+                        e.target.value,
+                        group.chapterName
                       )}
                       placeholder="예: 신청절차, 심사기준, 실행방법"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>장 이름 (문서명) *</label>
+                    <input
+                      type="text"
+                      value={group.chapterName}
+                      onChange={(e) => onUpdateFileGroup(
+                        idx,
+                        group.edition,
+                        group.editionName,
+                        e.target.value
+                      )}
+                      placeholder="예: 1장 가계대출총칙"
                     />
                   </div>
                 </div>
