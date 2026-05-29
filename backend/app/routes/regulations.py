@@ -157,12 +157,12 @@ async def analyze_regulation_file(
                 process_name=analysis_dict.get("process_name", ""),
                 description=analysis_dict.get("description", ""),
                 swim_lanes=analysis_dict.get("swim_lanes", []),
-                raci=analysis_dict.get("raci_matrix", []),
-                decisions=analysis_dict.get("decision_points", []),
+                raci=analysis_dict.get("raci", []),
+                decisions=analysis_dict.get("decisions", []),
                 system_interfaces=analysis_dict.get("system_interfaces", []),
                 swim_lanes_count=len(analysis_dict.get("swim_lanes", [])),
-                raci_count=len(analysis_dict.get("raci_matrix", [])),
-                decisions_count=len(analysis_dict.get("decision_points", []))
+                raci_count=len(analysis_dict.get("raci", [])),
+                decisions_count=len(analysis_dict.get("decisions", []))
             ))
             db.commit()
             saved = True

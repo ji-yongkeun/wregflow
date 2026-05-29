@@ -115,7 +115,7 @@ export function AnalysisDetailView({ analysis, onClose }) {
     } else if (selectedTab === 'raci') {
       await downloadRaciPPT(parse(analysis.raci), analysis.process_name, `raci_${date}.pptx`)
     } else if (selectedTab === 'decisions') {
-      await downloadDecisionsPPT(parse(analysis.decisions), analysis.process_name, `decisions_${date}.pptx`)
+      await downloadDecisionsPPT(getDecisionsData(), analysis.process_name, `decisions_${date}.pptx`)
     }
   }
 
@@ -142,7 +142,7 @@ export function AnalysisDetailView({ analysis, onClose }) {
         downloadAsJson(analysis.raci, `raci_${currentDate}.json`)
         break
       case 'decisions':
-        downloadAsJson(analysis.decisions, `decisions_${currentDate}.json`)
+        downloadAsJson(getDecisionsData(), `decisions_${currentDate}.json`)
         break
       default:
         break
@@ -157,7 +157,7 @@ export function AnalysisDetailView({ analysis, onClose }) {
         downloadRaciAsCsv(analysis.raci, `raci_${currentDate}.csv`)
         break
       case 'decisions':
-        downloadDecisionsAsCsv(analysis.decisions, `decisions_${currentDate}.csv`)
+        downloadDecisionsAsCsv(getDecisionsData(), `decisions_${currentDate}.csv`)
         break
       default:
         alert('이 탭에서는 CSV 다운로드를 지원하지 않습니다')
@@ -181,6 +181,34 @@ export function AnalysisDetailView({ analysis, onClose }) {
     } catch (e) {
       return String(data)
     }
+  }
+
+  const DECISION_KEYWORDS = ['여부', '검토', '심사', '결정', '판단', '승인', '확인', '심의', '적정성']
+
+  const getDecisionsData = () => {
+    const raw = typeof analysis.decisions === 'string'
+      ? (() => { try { return JSON.parse(analysis.decisions) } catch { return [] } })()
+      : analysis.decisions
+    if (Array.isArray(raw) && raw.length > 0) return raw
+    const lanes = typeof analysis.swim_lanes === 'string'
+      ? (() => { try { return JSON.parse(analysis.swim_lanes) } catch { return [] } })()
+      : (analysis.swim_lanes || [])
+    const generated = []
+    let id = 1
+    for (const lane of lanes) {
+      for (const step of (lane.steps || [])) {
+        const action = step.action || ''
+        if (step.decision || DECISION_KEYWORDS.some(kw => action.includes(kw))) {
+          generated.push({
+            id: id++,
+            question: action || '의사결정',
+            yes_outcome: '해당 조건 만족 시 진행',
+            no_outcome: '조건 불만족 시 반려/보완',
+          })
+        }
+      }
+    }
+    return generated
   }
 
   const getTabData = () => {
@@ -223,20 +251,14 @@ export function AnalysisDetailView({ analysis, onClose }) {
             />
           )
         }
-      case 'decisions':
+      case 'decisions': {
+        const decisionsData = getDecisionsData()
         return {
           title: '⚡ 의사결정 포인트',
-          data: analysis.decisions,
-          component: (
-            <DecisionTable 
-              data={
-                typeof analysis.decisions === 'string' 
-                  ? JSON.parse(analysis.decisions)
-                  : analysis.decisions
-              }
-            />
-          )
+          data: decisionsData.length > 0 ? decisionsData : null,
+          component: <DecisionTable data={decisionsData} />
         }
+      }
       default:
         return { title: '', data: null, component: null }
     }
@@ -318,13 +340,15 @@ export function AnalysisDetailView({ analysis, onClose }) {
                 <div className="viz-header">
                   <h3>{currentTab.title}</h3>
                   <div className="download-buttons">
-                    <button
-                      className="btn-download-ppt-image"
-                      onClick={handleDownloadImagePPT}
-                      title="화면 이미지 그대로 PPT로 저장"
-                    >
-                      🖼️ 이미지(PPT)저장
-                    </button>
+                    {selectedTab === 'swimlane' && (
+                      <button
+                        className="btn-download-ppt-image"
+                        onClick={handleDownloadImagePPT}
+                        title="화면 이미지 그대로 PPT로 저장"
+                      >
+                        🖼️ 이미지(PPT)저장
+                      </button>
+                    )}
                     <button
                       className="btn-download-ppt"
                       onClick={handleDownloadPPT}
@@ -348,7 +372,9 @@ export function AnalysisDetailView({ analysis, onClose }) {
                     >
                       💾 JSON 저장
                     </button>
-                    <ExcelDropdownButton onSelect={handleDownloadProcessExcel} />
+                    {selectedTab === 'swimlane' && (
+                      <ExcelDropdownButton onSelect={handleDownloadProcessExcel} />
+                    )}
                     <button
                       className={`btn-copy-json ${copiedJson ? 'copied' : ''}`}
                       onClick={() => copyToClipboard(currentTab.data)}

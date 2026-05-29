@@ -15,7 +15,10 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
-import { UserOutlined, BankOutlined, SolutionOutlined, SafetyCertificateOutlined, LineChartOutlined, FileTextOutlined } from '@ant-design/icons'
+import { 
+  UserOutlined, BankOutlined, SolutionOutlined, SafetyCertificateOutlined, 
+  LineChartOutlined, FileTextOutlined, DesktopOutlined, CheckCircleOutlined, SettingOutlined 
+} from '@ant-design/icons'
 
 const LANE_WIDTH = 190
 const HEADER_HEIGHT = 100
@@ -74,6 +77,17 @@ function LaneGroupNode({ data }) {
   )
 }
 
+// ── Task Type Icon Mapper ─────────────────────────────────────────────────────
+const getTaskTypeIcon = (type) => {
+  switch (type) {
+    case 'system': return <DesktopOutlined />
+    case 'approval': return <CheckCircleOutlined />
+    case 'general': return <SettingOutlined />
+    case 'document':
+    default: return <FileTextOutlined />
+  }
+}
+
 // ── Process step node ─────────────────────────────────────────────────────────
 function ProcessNode({ data, selected }) {
   return (
@@ -87,22 +101,34 @@ function ProcessNode({ data, selected }) {
       borderRadius: '8px',
       display: 'flex', flexDirection: 'row', alignItems: 'stretch',
       boxShadow: selected ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 2px 5px rgba(0,0,0,0.05)',
-      cursor: 'pointer', overflow: 'hidden', transition: 'all 0.2s',
+      cursor: 'pointer', position: 'relative', transition: 'all 0.2s',
     }}>
+      {data.system_used && (
+        <div style={{
+          position: 'absolute', top: '-10px', right: '5px',
+          background: '#10b981', color: 'white', fontSize: '9px', fontWeight: 'bold',
+          padding: '2px 6px', borderRadius: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          {data.system_used}
+        </div>
+      )}
       <Handle type="target" position={Position.Top} style={{ background: '#3b82f6', border: 'none' }} />
       <div style={{
         width: '32px', background: '#3b82f6', color: '#ffffff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontWeight: 'bold', fontSize: '14px'
+        fontWeight: 'bold', fontSize: '14px', borderTopLeftRadius: '6px', borderBottomLeftRadius: '6px'
       }}>
         {data.order}
       </div>
-      <div style={{ flex: 1, padding: '6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <div style={{ flex: 1, padding: '8px 8px 6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <div style={{
           color: '#1e293b', fontSize: '11px', fontWeight: '600', lineHeight: '1.3',
-          wordBreak: 'keep-all', overflowWrap: 'break-word'
+          wordBreak: 'keep-all', overflowWrap: 'break-word', marginBottom: '4px'
         }}>
           {data.action}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', color: '#94a3b8', fontSize: '12px' }}>
+          {getTaskTypeIcon(data.task_type)}
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} style={{ background: '#3b82f6', border: 'none' }} />
@@ -219,28 +245,77 @@ function buildFlowGraph(swimData) {
     })
   })
 
-  // ── 전체 글로벌 엣지 연결 (순서대로 화살표 생성) ─────────────────────────
-  for (let i = 0; i < allSteps.length - 1; i++) {
-    const curr = allSteps[i]
-    const next = allSteps[i + 1]
-    const cross = curr.laneIdx !== next.laneIdx
+  // ── 전체 엣지 연결 로직 (next_steps 기반 + Fallback 지원) ─────────────────
+  let hasAnyNextSteps = false
+  const orderToNodeId = {}
 
-    let sourceHandle = curr.decision ? 'yes' : undefined
-    let label = curr.decision ? '예' : undefined
+  allSteps.forEach(s => {
+    orderToNodeId[s.order] = `step-${s.laneIdx}-${s.originalIndex}`
+    if (s.next_steps && s.next_steps.length > 0) {
+      hasAnyNextSteps = true
+    }
+  })
 
-    edges.push({
-      id: `edge-${i}`,
-      source: `step-${curr.laneIdx}-${curr.originalIndex}`,
-      target: `step-${next.laneIdx}-${next.originalIndex}`,
-      sourceHandle,
-      type: 'smoothstep',
-      animated: cross,
-      label,
-      labelStyle: { fill: '#3b82f6', fontWeight: 700, fontSize: 10 },
-      labelBgStyle: { fill: 'rgba(255,255,255,0.9)', padding: 3 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6', width: 14, height: 14 },
-      style: { stroke: '#94a3b8', strokeWidth: 1.5 },
+  if (hasAnyNextSteps) {
+    // 새로운 JSON 형식: next_steps 배열을 기반으로 분기 생성
+    allSteps.forEach(curr => {
+      const sourceId = `step-${curr.laneIdx}-${curr.originalIndex}`
+      const nextOrders = curr.next_steps || []
+      
+      nextOrders.forEach((nextOrder, index) => {
+        const targetId = orderToNodeId[nextOrder]
+        if (targetId) {
+          const targetLaneIdx = parseInt(targetId.split('-')[1])
+          const cross = curr.laneIdx !== targetLaneIdx
+          
+          let sourceHandle = undefined
+          let label = undefined
+          if (curr.decision) {
+            // 의사결정 노드일 경우 첫 번째 연결은 'yes', 두 번째 연결은 'no'
+            if (index === 0) { sourceHandle = 'yes'; label = '예' }
+            else { sourceHandle = 'no'; label = '아니오' }
+          }
+
+          edges.push({
+            id: `edge-${sourceId}-${targetId}`,
+            source: sourceId,
+            target: targetId,
+            sourceHandle,
+            type: 'smoothstep',
+            animated: cross,
+            label,
+            labelStyle: { fill: '#3b82f6', fontWeight: 700, fontSize: 10 },
+            labelBgStyle: { fill: 'rgba(255,255,255,0.9)', padding: 3 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6', width: 14, height: 14 },
+            style: { stroke: '#94a3b8', strokeWidth: 1.5 },
+          })
+        }
+      })
     })
+  } else {
+    // 기존 JSON 형식: 단순 순차적 연결 (Fallback)
+    for (let i = 0; i < allSteps.length - 1; i++) {
+      const curr = allSteps[i]
+      const next = allSteps[i + 1]
+      const cross = curr.laneIdx !== next.laneIdx
+
+      let sourceHandle = curr.decision ? 'yes' : undefined
+      let label = curr.decision ? '예' : undefined
+
+      edges.push({
+        id: `edge-${i}`,
+        source: `step-${curr.laneIdx}-${curr.originalIndex}`,
+        target: `step-${next.laneIdx}-${next.originalIndex}`,
+        sourceHandle,
+        type: 'smoothstep',
+        animated: cross,
+        label,
+        labelStyle: { fill: '#3b82f6', fontWeight: 700, fontSize: 10 },
+        labelBgStyle: { fill: 'rgba(255,255,255,0.9)', padding: 3 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6', width: 14, height: 14 },
+        style: { stroke: '#94a3b8', strokeWidth: 1.5 },
+      })
+    }
   }
 
   return { nodes, edges, totalWidth, totalHeight }

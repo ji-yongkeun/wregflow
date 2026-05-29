@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import SwimlaneDiagram from './SwimlaneDiagram'
 import DecisionTable from './DecisionTable'
 import {
@@ -6,6 +6,7 @@ import {
   downloadProcessExcel,
   downloadSwimlanePPT, downloadRaciPPT, downloadDecisionsPPT,
   downloadSwimlaneImage, downloadRaciImage, downloadDecisionsImage,
+  downloadElementAsPPT
 } from '../utils/downloadUtils'
 import ExcelDropdownButton from './ExcelDropdownButton'
 
@@ -106,20 +107,42 @@ function buildRaciData(result) {
   })
 }
 
+const DECISION_KEYWORDS = ['여부', '검토', '심사', '결정', '판단', '승인', '확인', '심의', '적정성']
+
 function buildDecisionsData(result) {
+  // 1순위: critical_decision_points
   const points = result.integrated_data?.critical_decision_points || []
-  return points.map((p, idx) => ({
-    id:          p.id || (idx + 1),
-    question:    p.point_name || '',
-    yes_outcome: p.description || '',
-    no_outcome:  p.impact || '',
-  }))
+  if (points.length > 0) {
+    return points.map((p, idx) => ({
+      id:          p.id || (idx + 1),
+      question:    p.point_name || '',
+      yes_outcome: p.description || '',
+      no_outcome:  p.impact || '',
+    }))
+  }
+  // 2순위: integrated_process.steps 키워드 기반 생성
+  const steps = result.integrated_data?.integrated_process?.steps || []
+  const generated = []
+  let id = 1
+  for (const step of steps) {
+    const name = step.step_name || ''
+    if (DECISION_KEYWORDS.some(kw => name.includes(kw))) {
+      generated.push({
+        id: id++,
+        question: name,
+        yes_outcome: step.description || '해당 조건 만족 시 진행',
+        no_outcome:  '조건 불만족 시 반려/보완',
+      })
+    }
+  }
+  return generated
 }
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 export function IntegrationResultView({ result, onClose }) {
   const [selectedTab, setSelectedTab] = useState('swimlane')
   const [copiedJson, setCopiedJson]   = useState(false)
+  const vizDiagramRef = useRef(null)
 
   if (!result) return null
 
@@ -132,7 +155,7 @@ export function IntegrationResultView({ result, onClose }) {
     switch (selectedTab) {
       case 'swimlane':  return { title: '🏊 Swim Lane 다이어그램', data: swimData,       component: <SwimlaneDiagram data={swimData} /> }
       case 'raci':      return { title: '👥 RACI 매트릭스',        data: raciData,       component: <RACIMatrix data={raciData} /> }
-      case 'decisions': return { title: '⚡ 의사결정 포인트',       data: decisionsData,  component: <DecisionTable data={decisionsData} /> }
+      case 'decisions': return { title: '⚡ 의사결정 포인트',       data: decisionsData.length > 0 ? decisionsData : null,  component: <DecisionTable data={decisionsData} /> }
       default:          return { title: '', data: null, component: null }
     }
   }
@@ -142,10 +165,13 @@ export function IntegrationResultView({ result, onClose }) {
   // ── 다운로드 핸들러 ──────────────────────────────────────────────────────────
   const date = () => new Date().toISOString().slice(0, 10)
 
-  const handleDownloadImage = () => {
-    if (selectedTab === 'swimlane')  downloadSwimlaneImage(swimData,      processName, null, `integrated_swimlane_${date()}.png`)
-    else if (selectedTab === 'raci') downloadRaciImage(raciData,          processName,       `integrated_raci_${date()}.png`)
-    else                             downloadDecisionsImage(decisionsData, processName,       `integrated_decisions_${date()}.png`)
+  const handleDownloadImagePPT = async () => {
+    const tabTitles = { swimlane: 'Swim Lane 다이어그램', raci: 'RACI 매트릭스', decisions: '의사결정 포인트' }
+    await downloadElementAsPPT(
+      vizDiagramRef.current,
+      `${processName} — ${tabTitles[selectedTab] || ''}`.trim(),
+      `integrated_${selectedTab}_image_${date()}.pptx`
+    )
   }
 
   const handleDownloadPPT = async () => {
@@ -238,9 +264,11 @@ export function IntegrationResultView({ result, onClose }) {
                 <div className="viz-header">
                   <h3>{currentTab.title}</h3>
                   <div className="download-buttons">
-                    <button className="btn-download-image" onClick={handleDownloadImage} title="이미지 저장">
-                      📥 이미지 저장
-                    </button>
+                    {selectedTab === 'swimlane' && (
+                      <button className="btn-download-ppt-image" onClick={handleDownloadImagePPT} title="화면 이미지 그대로 PPT로 저장">
+                        🖼️ 이미지(PPT)저장
+                      </button>
+                    )}
                     <button className="btn-download-ppt" onClick={handleDownloadPPT} title="PPT 저장">
                       🖼️ PPT 저장
                     </button>
@@ -252,7 +280,9 @@ export function IntegrationResultView({ result, onClose }) {
                     <button className="btn-download-json" onClick={handleDownloadJson} title="JSON 저장">
                       💾 JSON 저장
                     </button>
-                    <ExcelDropdownButton onSelect={handleDownloadExcel} />
+                    {selectedTab === 'swimlane' && (
+                      <ExcelDropdownButton onSelect={handleDownloadExcel} />
+                    )}
                     <button className={`btn-copy-json ${copiedJson ? 'copied' : ''}`} onClick={copyToClipboard} title="복사">
                       {copiedJson ? '✓ 복사됨' : '📋 JSON 복사'}
                     </button>
@@ -260,7 +290,7 @@ export function IntegrationResultView({ result, onClose }) {
                 </div>
 
                 {/* 시각화 */}
-                <div className="viz-diagram">
+                <div className="viz-diagram" ref={vizDiagramRef}>
                   {currentTab.component}
                 </div>
 

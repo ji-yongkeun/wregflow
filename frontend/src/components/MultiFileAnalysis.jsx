@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import SwimlaneDiagram from './SwimlaneDiagram'
 import DecisionTable from './DecisionTable'
-import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage, downloadSingleAnalysisExcel, downloadSwimlanePPT, downloadRaciPPT, downloadDecisionsPPT } from '../utils/downloadUtils'
+import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage, downloadSingleAnalysisExcel, downloadSwimlanePPT, downloadRaciPPT, downloadDecisionsPPT, downloadElementAsPPT } from '../utils/downloadUtils'
 import PermissionGuard from './PermissionGuard'
 import ExcelDropdownButton from './ExcelDropdownButton'
 
@@ -9,6 +9,7 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
   const [activeFileIndex, setActiveFileIndex] = useState(0)
   const [selectedTab, setSelectedTab] = useState('swimlane')
   const [copiedJson, setCopiedJson] = useState(false)
+  const vizDiagramRef = useRef(null)
 
   if (!analyses || analyses.length === 0) {
     return null
@@ -28,10 +29,10 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
         <thead>
           <tr>
             <th>작업</th>
-            <th>R</th>
-            <th>A</th>
-            <th>C</th>
-            <th>I</th>
+            <th>R(실무담당)</th>
+            <th>A(최종책임)</th>
+            <th>C(협의/자문)</th>
+            <th>I(정보수신)</th>
           </tr>
         </thead>
         <tbody>
@@ -60,31 +61,16 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
     }
   }
 
-  const handleDownload = async () => {
-    const currentDate = new Date().toISOString().slice(0, 10)
+  const handleDownloadImagePPT = async () => {
+    const date = new Date().toISOString().slice(0, 10)
+    const tabTitles = { swimlane: 'Swim Lane 다이어그램', raci: 'RACI 매트릭스', decisions: '의사결정 포인트' }
+    const processName = currentAnalysis.process_name || currentFileName || 'process'
     
-    switch(selectedTab) {
-      case 'swimlane':
-        const swimlaneSvg = document.querySelector('.swimlane-viz svg')
-        if (swimlaneSvg) {
-          await downloadSvgAsImage(swimlaneSvg, `swimlane_${currentDate}.png`)
-        }
-        break
-      case 'raci':
-        const raciTable = document.querySelector('.raci-viz')
-        if (raciTable) {
-          await downloadTableAsImage(raciTable, `raci_${currentDate}.png`)
-        }
-        break
-      case 'decisions':
-        const decisionTable = document.querySelector('.decisions-viz')
-        if (decisionTable) {
-          await downloadTableAsImage(decisionTable, `decisions_${currentDate}.png`)
-        }
-        break
-      default:
-        break
-    }
+    await downloadElementAsPPT(
+      vizDiagramRef.current,
+      `${processName} — ${tabTitles[selectedTab] || ''}`.trim(),
+      `${selectedTab}_image_${date}.pptx`
+    )
   }
 
   const handleDownloadPPT = async () => {
@@ -113,7 +99,7 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
         downloadAsJson(currentAnalysis.raci, `raci_${currentDate}.json`)
         break
       case 'decisions':
-        downloadAsJson(currentAnalysis.decisions, `decisions_${currentDate}.json`)
+        downloadAsJson(getDecisionsData(), `decisions_${currentDate}.json`)
         break
       default:
         break
@@ -128,7 +114,7 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
         downloadRaciAsCsv(currentAnalysis.raci, `raci_${currentDate}.csv`)
         break
       case 'decisions':
-        downloadDecisionsAsCsv(currentAnalysis.decisions, `decisions_${currentDate}.csv`)
+        downloadDecisionsAsCsv(getDecisionsData(), `decisions_${currentDate}.csv`)
         break
       default:
         break
@@ -137,6 +123,35 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
 
   const handleDownloadExcel = (type) => {
     downloadSingleAnalysisExcel(currentAnalysis, type)
+  }
+
+  const DECISION_KEYWORDS = ['여부', '검토', '심사', '결정', '판단', '승인', '확인', '심의', '적정성']
+
+  const getDecisionsData = () => {
+    const raw = typeof currentAnalysis.decisions === 'string'
+      ? (() => { try { return JSON.parse(currentAnalysis.decisions) } catch { return [] } })()
+      : currentAnalysis.decisions
+    if (Array.isArray(raw) && raw.length > 0) return raw
+    // fallback: swim_lanes 키워드 기반 생성
+    const lanes = typeof currentAnalysis.swim_lanes === 'string'
+      ? (() => { try { return JSON.parse(currentAnalysis.swim_lanes) } catch { return [] } })()
+      : (currentAnalysis.swim_lanes || [])
+    const generated = []
+    let id = 1
+    for (const lane of lanes) {
+      for (const step of (lane.steps || [])) {
+        const action = step.action || ''
+        if (step.decision || DECISION_KEYWORDS.some(kw => action.includes(kw))) {
+          generated.push({
+            id: id++,
+            question: action || '의사결정',
+            yes_outcome: '해당 조건 만족 시 진행',
+            no_outcome: '조건 불만족 시 반려/보완',
+          })
+        }
+      }
+    }
+    return generated
   }
 
   const renderContent = () => {
@@ -176,13 +191,7 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
       case 'decisions':
         return (
           <div className="decisions-viz">
-            <DecisionTable 
-              data={
-                typeof currentAnalysis.decisions === 'string'
-                  ? JSON.parse(currentAnalysis.decisions)
-                  : currentAnalysis.decisions
-              }
-            />
+            <DecisionTable data={getDecisionsData()} />
           </div>
         )
       default:
@@ -212,66 +221,7 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
         </div>
       </div>
 
-      {/* 중앙: 선택된 탭의 시각화 */}
-      <div className="analysis-content">
-        <div className="viz-header">
-          <h3>
-            {selectedTab === 'swimlane' && '🏊 Swim Lane 다이어그램'}
-            {selectedTab === 'raci' && '👥 RACI 매트릭스'}
-            {selectedTab === 'decisions' && '⚡ 의사결정 포인트'}
-          </h3>
-          <div className="download-buttons">
-            <button 
-              className="btn-download-image"
-              onClick={handleDownload}
-              title="다이어그램/테이블을 이미지로 다운로드"
-            >
-              📥 이미지 저장
-            </button>
-            <button
-              className="btn-download-ppt"
-              onClick={handleDownloadPPT}
-              title="현재 탭을 PowerPoint 파일로 저장"
-            >
-              🖼️ PPT 저장
-            </button>
-            {(selectedTab === 'raci' || selectedTab === 'decisions') && (
-              <button 
-                className="btn-download-csv"
-                onClick={handleDownloadCsv}
-                title="데이터를 CSV로 다운로드"
-              >
-                📊 CSV 저장
-              </button>
-            )}
-            <button 
-              className="btn-download-json"
-              onClick={handleDownloadJson}
-              title="JSON 데이터를 파일로 다운로드"
-            >
-              💾 JSON 저장
-            </button>
-            <ExcelDropdownButton onSelect={handleDownloadExcel} />
-            <button 
-              className={`btn-copy-json ${copiedJson ? 'copied' : ''}`}
-              onClick={() => copyToClipboard(
-                selectedTab === 'swimlane' ? currentAnalysis.swim_lanes :
-                selectedTab === 'raci' ? currentAnalysis.raci :
-                currentAnalysis.decisions
-              )}
-              title="JSON을 클립보드에 복사"
-            >
-              {copiedJson ? '✓ 복사됨' : '📋 JSON 복사'}
-            </button>
-          </div>
-        </div>
-
-        <div className="viz-content">
-          {renderContent()}
-        </div>
-      </div>
-
-      {/* 하단: 탭 선택 카드 (중복 제거 - 1번만 표시) */}
+      {/* 상단: 탭 선택 카드 (결과가 아래로 나오도록 위로 이동) */}
       <div className="analysis-cards">
         <div 
           className={`card ${selectedTab === 'swimlane' ? 'active' : ''}`}
@@ -298,6 +248,70 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
           <div className="card-icon">⚡</div>
           <h4>의사결정 맵</h4>
           <p>의사결정 분기 자동 추출</p>
+        </div>
+      </div>
+
+      {/* 중앙: 선택된 탭의 시각화 */}
+      <div className="analysis-content">
+
+        <div className="viz-header">
+          <h3>
+            {selectedTab === 'swimlane' && '🏊 Swim Lane 다이어그램'}
+            {selectedTab === 'raci' && '👥 RACI 매트릭스'}
+            {selectedTab === 'decisions' && '⚡ 의사결정 포인트'}
+          </h3>
+          <div className="download-buttons">
+            {selectedTab === 'swimlane' && (
+              <button 
+                className="btn-download-ppt-image"
+                onClick={handleDownloadImagePPT}
+                title="화면 이미지 그대로 PPT로 저장"
+              >
+                🖼️ 이미지(PPT)저장
+              </button>
+            )}
+            <button
+              className="btn-download-ppt"
+              onClick={handleDownloadPPT}
+              title="현재 탭을 PowerPoint 파일로 저장"
+            >
+              🖼️ PPT 저장
+            </button>
+            {(selectedTab === 'raci' || selectedTab === 'decisions') && (
+              <button 
+                className="btn-download-csv"
+                onClick={handleDownloadCsv}
+                title="데이터를 CSV로 다운로드"
+              >
+                📊 CSV 저장
+              </button>
+            )}
+            <button 
+              className="btn-download-json"
+              onClick={handleDownloadJson}
+              title="JSON 데이터를 파일로 다운로드"
+            >
+              💾 JSON 저장
+            </button>
+            {selectedTab === 'swimlane' && (
+              <ExcelDropdownButton onSelect={handleDownloadExcel} />
+            )}
+            <button 
+              className={`btn-copy-json ${copiedJson ? 'copied' : ''}`}
+              onClick={() => copyToClipboard(
+                selectedTab === 'swimlane' ? currentAnalysis.swim_lanes :
+                selectedTab === 'raci' ? currentAnalysis.raci :
+                getDecisionsData()
+              )}
+              title="JSON을 클립보드에 복사"
+            >
+              {copiedJson ? '✓ 복사됨' : '📋 JSON 복사'}
+            </button>
+          </div>
+        </div>
+
+        <div className="viz-content" ref={vizDiagramRef}>
+          {renderContent()}
         </div>
       </div>
 

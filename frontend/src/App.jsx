@@ -355,10 +355,10 @@ function AppContent() {
                   <thead>
                     <tr>
                       <th>작업</th>
-                      <th>R</th>
-                      <th>A</th>
-                      <th>C</th>
-                      <th>I</th>
+                      <th>R(실무담당)</th>
+                      <th>A(최종책임)</th>
+                      <th>C(협의/자문)</th>
+                      <th>I(정보수신)</th>
                     </tr>
                   </thead>
                   <tbody>

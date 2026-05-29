@@ -585,9 +585,9 @@ export const downloadSwimlaneImage = (swimData, processName, _unused, filename) 
   const SC    = 2
   const MG    = 36
   const HDR_W = 188
-  const LANE_H = 150
+  const LANE_H = 180
   const STEP_W = 230
-  const CARD_H = 98
+  const CARD_H = 125
   const CMGX  = 14
   const CARD_W = STEP_W - CMGX * 2
   const FONT   = '"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",sans-serif'
@@ -653,6 +653,19 @@ export const downloadSwimlaneImage = (swimData, processName, _unused, filename) 
       ctx.fillStyle = isDec ? '#FEF3C7' : '#E0E7FF'
       ctx.font = `bold 12px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'
       drawWrappedText(ctx, step.action, cX + CARD_W / 2, cY + 24, CARD_W - 10, 15, 4)
+
+      if (step.system_used) {
+        ctx.fillStyle = '#10B981'; ctx.font = `bold 10px ${FONT}`
+        ctx.fillText(`[${step.system_used}]`, cX + CARD_W / 2, cY + CARD_H - 32)
+      }
+      
+      const typeText = {
+        'system': '💻 시스템', 'approval': '✅ 승인', 'general': '⚙️ 일반', 'document': '📄 문서'
+      }[step.task_type] || step.task_type || ''
+      if (typeText) {
+        ctx.fillStyle = '#94A3B8'; ctx.font = `bold 10px ${FONT}`
+        ctx.fillText(typeText, cX + CARD_W / 2, cY + CARD_H - 18)
+      }
 
       if (si < sorted.length - 1) {
         const ax = cX + CARD_W, ex = cX + STEP_W - CMGX, ay = lY + LANE_H / 2
@@ -872,9 +885,9 @@ export const downloadSwimlanePPT = async (swimData, processName, filename) => {
     const M       = 0.25   // 외부 여백
     const TITLE_H = 0.45
     const HDR_W   = 1.55   // 레인 헤더 너비
-    const LANE_H  = 1.10   // 레인 높이
+    const LANE_H  = 1.30   // 레인 높이
     const STEP_W  = 1.90   // 스텝 셀 너비
-    const CARD_H  = 0.82   // 카드 높이
+    const CARD_H  = 1.05   // 카드 높이
     const CARD_MX = 0.12   // 카드 좌우 여백
     const CARD_W  = STEP_W - CARD_MX * 2
 
@@ -956,12 +969,30 @@ export const downloadSwimlanePPT = async (swimData, processName, filename) => {
 
         // 액션 텍스트
         slide.addText(step.action, {
-          x: cX + 0.04, y: cY + 0.22, w: CARD_W - 0.08, h: CARD_H - 0.24,
+          x: cX + 0.04, y: cY + 0.22, w: CARD_W - 0.08, h: CARD_H - 0.50,
           fontSize: 8, bold: true,
           color: isDec ? 'FEF3C7' : 'E0E7FF',
           align: 'center', valign: 'top',
           fontFace: 'Malgun Gothic', wrap: true,
         })
+
+        if (step.system_used) {
+          slide.addText(`[${step.system_used}]`, {
+            x: cX, y: cY + CARD_H - 0.28, w: CARD_W, h: 0.15,
+            fontSize: 6.5, bold: true, color: '10B981', align: 'center', fontFace: 'Malgun Gothic'
+          })
+        }
+
+        const typeText = {
+          'system': '💻 시스템', 'approval': '✅ 승인', 'general': '⚙️ 일반', 'document': '📄 문서'
+        }[step.task_type] || step.task_type || ''
+        
+        if (typeText) {
+          slide.addText(typeText, {
+            x: cX, y: cY + CARD_H - 0.15, w: CARD_W, h: 0.15,
+            fontSize: 6.5, bold: true, color: '94A3B8', align: 'center', fontFace: 'Malgun Gothic'
+          })
+        }
 
         // 레인 내 화살표 (다음 스텝으로)
         if (si < sorted.length - 1) {

@@ -3,6 +3,7 @@ import json
 import re
 import google.generativeai as genai
 from typing import Dict, Any, List
+from pydantic import BaseModel, Field
 from app.config import settings
 import logging
 import time
@@ -34,14 +35,62 @@ def _ensure_gemini_configured():
 MAX_CHARS_PER_CHUNK = 30000
 MAX_RETRIES = 4
 
+class StepSchema(BaseModel):
+    order: int
+    action: str
+    decision: bool
+    task_type: str
+    system_used: str
+    next_steps: List[int]
+
+class SwimLaneSchema(BaseModel):
+    role: str
+    steps: List[StepSchema]
+
+class DecisionSchema(BaseModel):
+    id: int
+    question: str
+    yes_outcome: str
+    no_outcome: str
+
+class RACISchema(BaseModel):
+    task: str
+    responsible: str
+    accountable: str
+    consulted: str
+    informed: str
+
+class SystemInterfaceSchema(BaseModel):
+    system_a: str
+    system_b: str
+    interface_type: str
+    description: str
+
+class RegulationAnalysisSchema(BaseModel):
+    process_name: str
+    description: str
+    swim_lanes: List[SwimLaneSchema]
+    decisions: List[DecisionSchema]
+    raci: List[RACISchema]
+    system_interfaces: List[SystemInterfaceSchema]
+
 SYSTEM_PROMPT = (
-    "당신은 규정 분석 전문가입니다.\n"
+    "당신은 금융권 여신업무 프로세스 분석 전문가입니다.\n"
     "주어진 규정을 분석하여 다음을 추출합니다:\n"
     "1. 프로세스 이름\n"
     "2. Swim Lane (부서/역할별 단계)\n"
     "3. 의사결정 포인트\n"
     "4. RACI 매트릭스 (책임 담당자)\n"
     "5. 시스템 인터페이스 (연계 또는 사용되는 시스템 간 관계)\n\n"
+    "주의사항 (필수 사항, 반드시 지킬 것):\n"
+    "1. 각 단계(step)마다 'task_type' 필드를 반드시 포함하세요 (document, system, approval, general 중 택 1).\n"
+    "2. 각 단계마다 'system_used' 필드를 반드시 포함하세요 (사용 시스템명이 없으면 null).\n"
+    "3. 각 단계마다 'next_steps' 필드를 반드시 포함하세요 (이어지는 다음 단계들의 'order' 번호를 배열로 명시, 예: [3, 4], 마지막 단계이면 []).\n"
+    "4. 규정에서 승인, 검토, 심사, 조건 판단, 분기 등의 의사결정 포인트를 반드시 최소 1개 이상 추출해야 합니다.\n"
+    "   - 해당 swim_lane 단계에 'decision': true를 설정하세요.\n"
+    "   - 'decisions' 배열에 반드시 해당 내용을 포함시켜야 합니다. 절대로 비워두지 마세요.\n"
+    "   - decisions의 각 항목은 yes_outcome(조건 충족 시), no_outcome(조건 미충족 시)를 구체적으로 작성하세요.\n"
+    "절대로 위 필드들을 생략하지 마세요.\n\n"
     "JSON 형식으로만 응답하세요."
 )
 
@@ -53,8 +102,22 @@ JSON_FORMAT = """
     {
       "role": "부서/역할명",
       "steps": [
-        {"order": 1, "action": "액션 설명", "decision": false},
-        {"order": 2, "action": "의사결정점", "decision": true}
+        {
+          "order": 1, 
+          "action": "액션 설명", 
+          "decision": false,
+          "task_type": "document", 
+          "system_used": "사용 시스템명(없으면 null)",
+          "next_steps": [2]
+        },
+        {
+          "order": 2, 
+          "action": "의사결정점", 
+          "decision": true,
+          "task_type": "approval",
+          "system_used": null,
+          "next_steps": [3, 4]
+        }
       ]
     }
   ],
@@ -148,7 +211,13 @@ def _call_gemini_with_retry(text: str) -> dict:
     for attempt in range(MAX_RETRIES):
         try:
             model = genai.GenerativeModel('gemini-2.5-flash')
-            response = model.generate_content(user_message)
+            response = model.generate_content(
+                user_message,
+                generation_config={
+                    "response_mime_type": "application/json",
+                    "response_schema": RegulationAnalysisSchema
+                }
+            )
             return _parse_json_response(response.text)
 
         except json.JSONDecodeError as e:
@@ -249,8 +318,38 @@ def analyze_regulation(regulation_text: str) -> dict:
                 })
 
         if len(results) == 1:
-            return results[0]
-        return _merge_results(results)
+            final_res = results[0]
+        else:
+            final_res = _merge_results(results)
+
+        # 필수 필드 보장 (Gemini가 빈 응답을 반환할 경우 대비)
+        final_res.setdefault("process_name", "")
+        final_res.setdefault("description", "")
+        final_res.setdefault("swim_lanes", [])
+        final_res.setdefault("decisions", [])
+        final_res.setdefault("raci", [])
+        final_res.setdefault("system_interfaces", [])
+
+        # Fallback: 의사결정 배열이 비어있는 경우 swim_lanes에서 자동 생성
+        if not final_res.get("decisions"):
+            if "decisions" not in final_res:
+                final_res["decisions"] = []
+            decision_keywords = ['여부', '검토', '심사', '결정', '판단', '승인', '확인', '심의', '적정성', '가능']
+            decision_id = 1
+            for lane in final_res.get("swim_lanes", []):
+                for step in lane.get("steps", []):
+                    action = step.get("action", "")
+                    is_decision = step.get("decision") or any(kw in action for kw in decision_keywords)
+                    if is_decision:
+                        final_res["decisions"].append({
+                            "id": decision_id,
+                            "question": action or "의사결정",
+                            "yes_outcome": "해당 조건 만족 시 진행",
+                            "no_outcome": "조건 불만족 시 반려/보완"
+                        })
+                        decision_id += 1
+                        
+        return final_res
 
     except Exception as e:
         raise Exception(f"Gemini API 호출 중 오류 발생: {str(e)}")
@@ -381,7 +480,10 @@ JSON 응답 형식:
     try:
         _ensure_gemini_configured()
         model = genai.GenerativeModel('gemini-2.5-flash')
-        response = model.generate_content(prompt)
+        response = model.generate_content(
+            prompt,
+            generation_config={"response_mime_type": "application/json"}
+        )
         response_text = response.text
         
         # JSON 파싱
