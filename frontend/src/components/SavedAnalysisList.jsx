@@ -181,6 +181,16 @@ export function SavedAnalysisList() {
     }
   }
 
+  const getOriginalFileName = (fileId) => {
+    if (!fileId) return '';
+    const parts = fileId.split('_');
+    // 형식: edition_editionName_originalFilename
+    if (parts.length >= 3 && !isNaN(parseInt(parts[0]))) {
+      return parts.slice(2).join('_');
+    }
+    return fileId;
+  };
+
   return (
     <div className="saved-analysis-container">
       <h2>💾 저장된 분석 결과</h2>
@@ -317,9 +327,8 @@ export function SavedAnalysisList() {
                     </div>
                     
                     <div className="analysis-info">
-                      <h4>{analysis.file_name}</h4>
+                      <h4>{getOriginalFileName(analysis.file_id)}</h4>
                       <p>{analysis.edition ? `${analysis.edition}편` : ''}</p>
-                      <p className="analysis-process">{analysis.process_name || analysis.file_name}</p>
                     </div>
 
                     <div className="analysis-actions">
