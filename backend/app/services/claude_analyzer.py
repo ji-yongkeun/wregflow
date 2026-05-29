@@ -1,12 +1,37 @@
-from anthropic import Anthropic
-from app.config import settings
+import os
 import json
+import re
+import google.generativeai as genai
+from typing import Dict, Any, List
+from app.config import settings
+import logging
 import time
 
-client = Anthropic(api_key=settings.CLAUDE_API_KEY)
+logger = logging.getLogger(__name__)
 
-# 분당 30,000 토큰 한도에 맞게: 한국어 1자 ≈ 0.6~1토큰, 20,000자 ≈ 12,000~20,000토큰
-MAX_CHARS_PER_CHUNK = 20000
+# Gemini API 설정 (lazy 초기화)
+_gemini_configured = False
+
+def _ensure_gemini_configured():
+    """Gemini API가 설정되었는지 확인하고, 안 됐으면 설정"""
+    global _gemini_configured
+    if _gemini_configured:
+        return
+    
+    api_key = settings.GEMINI_API_KEY
+    if not api_key or not api_key.strip():
+        raise ValueError(
+            "GEMINI_API_KEY가 설정되지 않았습니다.\n"
+            "backend/.env 파일에 유효한 GEMINI_API_KEY를 설정해주세요.\n"
+            "Google AI Studio(https://aistudio.google.com/apikey)에서 API 키를 발급받으세요."
+        )
+    
+    genai.configure(api_key=api_key.strip())
+    _gemini_configured = True
+    logger.info("✅ Gemini API 설정 완료")
+
+# 청크 크기 (Gemini는 큰 컨텍스트를 지원하므로 여유 있게 설정)
+MAX_CHARS_PER_CHUNK = 30000
 MAX_RETRIES = 4
 
 SYSTEM_PROMPT = (
@@ -61,31 +86,52 @@ JSON_FORMAT = """
 }"""
 
 
-def _call_claude_with_retry(text: str) -> dict:
-    user_message = f"다음 규정을 분석해주세요:\n\n{text}\n\nJSON 응답 형식:{JSON_FORMAT}"
-    delay = 60
+def _parse_json_response(response_text: str) -> dict:
+    """응답 텍스트에서 JSON을 추출하고 파싱"""
+    content_text = response_text.strip()
+    # 코드 블록 제거
+    if content_text.startswith("```json"):
+        content_text = content_text[7:]
+    if content_text.startswith("```"):
+        content_text = content_text[3:]
+    if content_text.endswith("```"):
+        content_text = content_text[:-3]
+    content_text = content_text.strip()
+
+    # 직접 파싱 시도
+    try:
+        return json.loads(content_text)
+    except json.JSONDecodeError:
+        pass
+
+    # JSON 부분 추출 시도
+    json_start = content_text.find('{')
+    json_end = content_text.rfind('}') + 1
+    if json_start != -1 and json_end > json_start:
+        json_str = content_text[json_start:json_end]
+        return json.loads(json_str)
+
+    raise json.JSONDecodeError("JSON not found in response", content_text, 0)
+
+
+def _call_gemini_with_retry(text: str) -> dict:
+    """Gemini API 호출 (재시도 포함)"""
+    _ensure_gemini_configured()
+    user_message = f"{SYSTEM_PROMPT}\n\n다음 규정을 분석해주세요:\n\n{text}\n\nJSON 응답 형식:{JSON_FORMAT}"
+    delay = 30
     for attempt in range(MAX_RETRIES):
         try:
-            response = client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=4000,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": user_message}]
-            )
-            content_text = response.content[0].text.strip()
-            if content_text.startswith("```json"):
-                content_text = content_text[7:]
-            if content_text.startswith("```"):
-                content_text = content_text[3:]
-            if content_text.endswith("```"):
-                content_text = content_text[:-3]
-            return json.loads(content_text.strip())
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            response = model.generate_content(user_message)
+            return _parse_json_response(response.text)
 
+        except json.JSONDecodeError as e:
+            raise e
         except Exception as e:
             err_str = str(e)
-            is_rate_limit = "429" in err_str or "rate_limit" in err_str
+            is_rate_limit = "429" in err_str or "rate_limit" in err_str or "RESOURCE_EXHAUSTED" in err_str
             if is_rate_limit and attempt < MAX_RETRIES - 1:
-                print(f"[Rate Limit] {attempt+1}번 시도 실패. {delay}초 후 재시도...")
+                logger.warning(f"[Rate Limit] {attempt+1}번 시도 실패. {delay}초 후 재시도...")
                 time.sleep(delay)
                 delay *= 2
             else:
@@ -93,6 +139,7 @@ def _call_claude_with_retry(text: str) -> dict:
 
 
 def _merge_results(results: list) -> dict:
+    """여러 청크 결과를 하나로 병합"""
     if not results:
         return {}
     merged = {
@@ -128,6 +175,10 @@ def _merge_results(results: list) -> dict:
 
 
 def analyze_regulation(regulation_text: str) -> dict:
+    """
+    Gemini API를 사용하여 규정 텍스트 분석
+    (기존 Claude analyze_regulation과 동일한 인터페이스)
+    """
     if not regulation_text or not regulation_text.strip():
         raise ValueError("분석할 규정 텍스트가 비어 있습니다.")
 
@@ -141,13 +192,14 @@ def analyze_regulation(regulation_text: str) -> dict:
     try:
         results = []
         for idx, chunk in enumerate(chunks):
-            # 첫 번째 이후 청크는 레이트 리밋 방지를 위해 65초 대기
+            # 첫 번째 이후 청크는 레이트 리밋 방지를 위해 대기
             if idx > 0:
-                print(f"[Chunk {idx+1}/{len(chunks)}] 레이트 리밋 방지 대기 중 (65초)...")
-                time.sleep(65)
+                logger.info(f"[Chunk {idx+1}/{len(chunks)}] 레이트 리밋 방지 대기 중 (10초)...")
+                time.sleep(10)
             try:
-                result = _call_claude_with_retry(chunk)
+                result = _call_gemini_with_retry(chunk)
                 results.append(result)
+                logger.info(f"✅ Chunk {idx+1}/{len(chunks)} 분석 완료")
             except json.JSONDecodeError as e:
                 results.append({
                     "process_name": f"청크 {idx+1} 분석 결과",
@@ -163,15 +215,14 @@ def analyze_regulation(regulation_text: str) -> dict:
         return _merge_results(results)
 
     except Exception as e:
-        raise Exception(f"Claude API 호출 중 오류 발생: {str(e)}")
+        raise Exception(f"Gemini API 호출 중 오류 발생: {str(e)}")
 
 
 async def analyze_integration(analyses_data: list, integrated_name: str) -> dict:
     """
     여러 분석 결과를 통합하여 전체 프로세스 맵 생성
+    (Gemini API 사용)
     """
-    import re
-    
     # 분석 데이터를 프롬프트에 포함
     analyses_summary = ""
     for idx, analysis in enumerate(analyses_data, 1):
@@ -282,29 +333,26 @@ JSON 응답 형식:
 다른 설명 없이 JSON만 반환해주세요.
 """
     
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4096,
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
-    
-    response_text = message.content[0].text
-    
-    # JSON 파싱
     try:
-        integrated_data = json.loads(response_text)
-    except json.JSONDecodeError:
-        # JSON 추출 시도
-        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-        if json_match:
-            integrated_data = json.loads(json_match.group())
-        else:
-            integrated_data = {"raw_response": response_text}
+        _ensure_gemini_configured()
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        response = model.generate_content(prompt)
+        response_text = response.text
+        
+        # JSON 파싱
+        try:
+            integrated_data = json.loads(response_text)
+        except json.JSONDecodeError:
+            # JSON 추출 시도
+            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            if json_match:
+                integrated_data = json.loads(json_match.group())
+            else:
+                integrated_data = {"raw_response": response_text}
+        
+        logger.info(f"✅ Integration analysis successful: {integrated_name}")
+        return integrated_data
     
-    return integrated_data
-
+    except Exception as e:
+        logger.error(f"Gemini API integration error: {str(e)}")
+        raise Exception(f"Gemini API 통합 분석 중 오류 발생: {str(e)}")
