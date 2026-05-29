@@ -43,6 +43,14 @@ app = FastAPI(
     version="0.1.0"
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.on_event("startup")
 async def startup_event():
     # 기존 분석 결과에서 edition 값이 NULL인 경우 업데이트
@@ -80,19 +88,6 @@ async def startup_event():
     finally:
         db.close()
 
-# CORS 미들웨어 설정 (프론트엔드 포트 8081 허용 추가)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8090",  # React 개발 서버 포트 (8090)
-        "http://localhost:8081",  # React 로컬 개발 서버 포트 (8081)
-        "http://localhost:5173",  # React 기본 개발 서버 포트
-        "http://49.50.132.167",   # 네이버 클라우드 운영 서버 IP
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # 라우터 등록
 app.include_router(regulations_router)
