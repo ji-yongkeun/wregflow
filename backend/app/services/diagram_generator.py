@@ -16,6 +16,7 @@ def generate_process_mermaid(data: dict) -> str:
     steps = process['steps']
     
     for idx, step in enumerate(steps):
+        if not isinstance(step, dict): continue
         node_id = f'A{idx}'
         label = f'"{step.get("step_name", "")}<br/>({step.get("responsible_department", "")})"'
         code += f'    {node_id}[{label}]\n'
@@ -41,6 +42,7 @@ def generate_interaction_mermaid(data: dict) -> str:
     
     depts = set()
     for inter in interactions:
+        if not isinstance(inter, dict): continue
         depts.add(inter.get('from_dept', ''))
         depts.add(inter.get('to_dept', ''))
     
@@ -50,6 +52,7 @@ def generate_interaction_mermaid(data: dict) -> str:
         code += f'    D{idx}["{dept}"]\n'
     
     for inter in interactions:
+        if not isinstance(inter, dict): continue
         from_dept = inter.get('from_dept', '')
         to_dept = inter.get('to_dept', '')
         if from_dept in dept_list and to_dept in dept_list:
@@ -75,6 +78,7 @@ def generate_decision_mermaid(data: dict) -> str:
     code = 'graph TD\n'
     
     for idx, decision in enumerate(decisions):
+        if not isinstance(decision, dict): continue
         point_name = decision.get('point_name', '')
         code += f'    D{idx}{{"{point_name}"}}\n'
         code += f'    D{idx} -->|YES| Y{idx}["✓ 진행"]\n'

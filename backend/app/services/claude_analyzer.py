@@ -98,18 +98,44 @@ def _parse_json_response(response_text: str) -> dict:
         content_text = content_text[:-3]
     content_text = content_text.strip()
 
+    def ensure_dict(parsed_obj):
+        if isinstance(parsed_obj, list):
+            for item in parsed_obj:
+                if isinstance(item, dict):
+                    return item
+            return {}
+        if isinstance(parsed_obj, dict):
+            return parsed_obj
+        return {}
+
     # 직접 파싱 시도
     try:
-        return json.loads(content_text)
+        parsed = json.loads(content_text)
+        return ensure_dict(parsed)
     except json.JSONDecodeError:
         pass
 
-    # JSON 부분 추출 시도
+    # JSON 부분 추출 시도 ({...} 형태)
     json_start = content_text.find('{')
     json_end = content_text.rfind('}') + 1
     if json_start != -1 and json_end > json_start:
         json_str = content_text[json_start:json_end]
-        return json.loads(json_str)
+        try:
+            parsed = json.loads(json_str)
+            return ensure_dict(parsed)
+        except json.JSONDecodeError:
+            pass
+            
+    # 배열 형태 추출 시도 ([...] 형태)
+    json_start = content_text.find('[')
+    json_end = content_text.rfind(']') + 1
+    if json_start != -1 and json_end > json_start:
+        json_str = content_text[json_start:json_end]
+        try:
+            parsed = json.loads(json_str)
+            return ensure_dict(parsed)
+        except json.JSONDecodeError:
+            pass
 
     raise json.JSONDecodeError("JSON not found in response", content_text, 0)
 
@@ -142,9 +168,11 @@ def _merge_results(results: list) -> dict:
     """여러 청크 결과를 하나로 병합"""
     if not results:
         return {}
+        
+    first_result = results[0] if isinstance(results[0], dict) else {}
     merged = {
-        "process_name": results[0].get("process_name", ""),
-        "description": results[0].get("description", ""),
+        "process_name": first_result.get("process_name", ""),
+        "description": first_result.get("description", ""),
         "swim_lanes": [],
         "decisions": [],
         "raci": [],
@@ -153,22 +181,32 @@ def _merge_results(results: list) -> dict:
     role_map = {}
     decision_offset = 0
     for result in results:
+        if not isinstance(result, dict):
+            continue
+            
         for lane in result.get("swim_lanes", []):
+            if not isinstance(lane, dict):
+                continue
             role = lane.get("role", "")
             if role not in role_map:
                 role_map[role] = []
             role_map[role].extend(lane.get("steps", []))
+            
         for decision in result.get("decisions", []):
+            if not isinstance(decision, dict):
+                continue
             d = dict(decision)
             d["id"] = decision_offset + d.get("id", 0)
             merged["decisions"].append(d)
         decision_offset += len(result.get("decisions", []))
+        
         merged["raci"].extend(result.get("raci", []))
         merged["system_interfaces"].extend(result.get("system_interfaces", []))
 
     for role, steps in role_map.items():
         for i, step in enumerate(steps, start=1):
-            step["order"] = i
+            if isinstance(step, dict):
+                step["order"] = i
         merged["swim_lanes"].append({"role": role, "steps": steps})
 
     return merged
@@ -226,13 +264,18 @@ async def analyze_integration(analyses_data: list, integrated_name: str) -> dict
     # 분석 데이터를 프롬프트에 포함
     analyses_summary = ""
     for idx, analysis in enumerate(analyses_data, 1):
+        if not isinstance(analysis, dict):
+            continue
+            
         analyses_summary += f"\n## {analysis.get('edition', idx)}편: {analysis.get('process_name', '')}\n"
         analyses_summary += f"설명: {analysis.get('description', '')}\n"
         
         analyses_summary += "\n부서별 역할 (Swim Lanes):\n"
         swim_lanes = analysis.get('swim_lanes', [])
-        if swim_lanes:
+        if swim_lanes and isinstance(swim_lanes, list):
             for lane in swim_lanes:
+                if not isinstance(lane, dict):
+                    continue
                 steps_desc = []
                 for s in lane.get('steps', []):
                     if isinstance(s, dict):
@@ -243,8 +286,10 @@ async def analyze_integration(analyses_data: list, integrated_name: str) -> dict
         
         analyses_summary += "\nRACI 매트릭스:\n"
         raci = analysis.get('raci', [])
-        if raci:
+        if raci and isinstance(raci, list):
             for item in raci:
+                if not isinstance(item, dict):
+                    continue
                 analyses_summary += f"- {item.get('task', '')}: R={item.get('responsible', '')}, A={item.get('accountable', '')}\n"
         analyses_summary += "\n"
     

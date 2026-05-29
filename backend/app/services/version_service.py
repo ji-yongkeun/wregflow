@@ -38,10 +38,11 @@ def save_version(
         new_version = last_version.version + 1 if last_version else 1
     
     # 새 버전 저장
+    analysis_dict = analysis_data if isinstance(analysis_data, dict) else {}
     version_record = AnalysisVersion(
         file_id=file_id,
         version=new_version,
-        process_name=analysis_data.get('process_name', ''),
+        process_name=analysis_dict.get('process_name', ''),
         analysis_data=analysis_data,
         hash_value=current_hash
     )
@@ -85,19 +86,22 @@ def compare_versions(
     if not v1 or not v2:
         return {'error': '버전을 찾을 수 없습니다'}
     
+    v1_data = v1.analysis_data if isinstance(v1.analysis_data, dict) else {}
+    v2_data = v2.analysis_data if isinstance(v2.analysis_data, dict) else {}
+    
     # 변경사항 계산
     changes = {
-        'swim_lanes_changed': len(v1.analysis_data.get('swim_lanes', [])) != len(v2.analysis_data.get('swim_lanes', [])),
-        'swim_lanes_v1': len(v1.analysis_data.get('swim_lanes', [])),
-        'swim_lanes_v2': len(v2.analysis_data.get('swim_lanes', [])),
+        'swim_lanes_changed': len(v1_data.get('swim_lanes', [])) != len(v2_data.get('swim_lanes', [])),
+        'swim_lanes_v1': len(v1_data.get('swim_lanes', [])),
+        'swim_lanes_v2': len(v2_data.get('swim_lanes', [])),
         
-        'raci_changed': len(v1.analysis_data.get('raci', [])) != len(v2.analysis_data.get('raci', [])),
-        'raci_v1': len(v1.analysis_data.get('raci', [])),
-        'raci_v2': len(v2.analysis_data.get('raci', [])),
+        'raci_changed': len(v1_data.get('raci', [])) != len(v2_data.get('raci', [])),
+        'raci_v1': len(v1_data.get('raci', [])),
+        'raci_v2': len(v2_data.get('raci', [])),
         
-        'decisions_changed': len(v1.analysis_data.get('decisions', [])) != len(v2.analysis_data.get('decisions', [])),
-        'decisions_v1': len(v1.analysis_data.get('decisions', [])),
-        'decisions_v2': len(v2.analysis_data.get('decisions', [])),
+        'decisions_changed': len(v1_data.get('decisions', [])) != len(v2_data.get('decisions', [])),
+        'decisions_v1': len(v1_data.get('decisions', [])),
+        'decisions_v2': len(v2_data.get('decisions', [])),
     }
     
     return {

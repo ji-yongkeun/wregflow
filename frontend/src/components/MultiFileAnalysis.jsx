@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import SwimlaneDiagram from './SwimlaneDiagram'
 import DecisionTable from './DecisionTable'
-import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage, downloadSingleAnalysisExcel } from '../utils/downloadUtils'
+import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage, downloadSingleAnalysisExcel, downloadSwimlanePPT, downloadRaciPPT, downloadDecisionsPPT } from '../utils/downloadUtils'
 import PermissionGuard from './PermissionGuard'
 import ExcelDropdownButton from './ExcelDropdownButton'
 
@@ -84,6 +84,21 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
         break
       default:
         break
+    }
+  }
+
+  const handleDownloadPPT = async () => {
+    const date = new Date().toISOString().slice(0, 10)
+    const parse = v => typeof v === 'string' ? JSON.parse(v) : v
+    
+    const processName = currentAnalysis.process_name || currentFileName || 'process'
+
+    if (selectedTab === 'swimlane') {
+      await downloadSwimlanePPT(parse(currentAnalysis.swim_lanes), processName, `swimlane_${date}.pptx`)
+    } else if (selectedTab === 'raci') {
+      await downloadRaciPPT(parse(currentAnalysis.raci), processName, `raci_${date}.pptx`)
+    } else if (selectedTab === 'decisions') {
+      await downloadDecisionsPPT(parse(currentAnalysis.decisions), processName, `decisions_${date}.pptx`)
     }
   }
 
@@ -213,6 +228,13 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
             >
               📥 이미지 저장
             </button>
+            <button
+              className="btn-download-ppt"
+              onClick={handleDownloadPPT}
+              title="현재 탭을 PowerPoint 파일로 저장"
+            >
+              🖼️ PPT 저장
+            </button>
             {(selectedTab === 'raci' || selectedTab === 'decisions') && (
               <button 
                 className="btn-download-csv"
@@ -239,7 +261,7 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
               )}
               title="JSON을 클립보드에 복사"
             >
-              {copiedJson ? '✓ 복사됨' : '📋 복사'}
+              {copiedJson ? '✓ 복사됨' : '📋 JSON 복사'}
             </button>
           </div>
         </div>

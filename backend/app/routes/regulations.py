@@ -150,18 +150,19 @@ async def analyze_regulation_file(
                 ))
                 db.commit()
 
+            analysis_dict = analysis if isinstance(analysis, dict) else {}
             db.add(AnalysisResult(
                 file_id=file_id,
                 edition=edition,  # 중요: edition 반드시 저장
-                process_name=analysis.get("process_name", ""),
-                description=analysis.get("description", ""),
-                swim_lanes=analysis.get("swim_lanes", []),
-                raci=analysis.get("raci_matrix", []),
-                decisions=analysis.get("decision_points", []),
-                system_interfaces=analysis.get("system_interfaces", []),
-                swim_lanes_count=len(analysis.get("swim_lanes", [])),
-                raci_count=len(analysis.get("raci_matrix", [])),
-                decisions_count=len(analysis.get("decision_points", []))
+                process_name=analysis_dict.get("process_name", ""),
+                description=analysis_dict.get("description", ""),
+                swim_lanes=analysis_dict.get("swim_lanes", []),
+                raci=analysis_dict.get("raci_matrix", []),
+                decisions=analysis_dict.get("decision_points", []),
+                system_interfaces=analysis_dict.get("system_interfaces", []),
+                swim_lanes_count=len(analysis_dict.get("swim_lanes", [])),
+                raci_count=len(analysis_dict.get("raci_matrix", [])),
+                decisions_count=len(analysis_dict.get("decision_points", []))
             ))
             db.commit()
             saved = True
