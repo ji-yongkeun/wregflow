@@ -45,7 +45,7 @@ export function SavedAnalysisList() {
   const fetchAnalyses = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${BASE}/analysis/list`)
+      const response = await fetch(`${BASE}/regulations/analysis/list`)
       const data = await response.json()
       if (data.status === 'success') {
         setAnalyses(data.analyses)
@@ -59,7 +59,7 @@ export function SavedAnalysisList() {
 
   const fetchIntegrations = async () => {
     try {
-      const response = await fetch(`${BASE}/integration/list`)
+      const response = await fetch(`${BASE}/regulations/integration/list`)
       const data = await response.json()
       if (data.status === 'success') {
         setIntegrations(data.integrations)
