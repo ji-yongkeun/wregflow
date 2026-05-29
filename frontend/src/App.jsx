@@ -73,7 +73,7 @@ function AppContent() {
     setLoading(true)
     setAnalysis(null)
     try {
-      const response = await axiosInstance.post(`/regulations/analyze?file_id=${encodeURIComponent(fileId)}`)
+      const response = await axiosInstance.post(`/api/regulations/analyze?file_id=${encodeURIComponent(fileId)}`)
       const data = response.data
       if (data.status === "success") {
         setAnalysis(data.analysis)
@@ -102,7 +102,7 @@ function AppContent() {
     formData.append("file", file)
 
     try {
-      const response = await axiosInstance.post("/regulations/upload", formData, {
+      const response = await axiosInstance.post("/api/regulations/upload", formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -151,7 +151,7 @@ function AppContent() {
           formData.append("edition_name", group.editionName)
           
           const uploadResponse = await axiosInstance.post(
-            "/regulations/upload",
+            "/api/regulations/upload",
             formData,
             {
               headers: {
@@ -165,7 +165,7 @@ function AppContent() {
           // Step 2: 파일 분석
           if (uploadData.filename) {
             const analyzeResponse = await axiosInstance.post(
-              `/regulations/analyze?file_id=${encodeURIComponent(uploadData.filename)}&edition=${group.edition}&edition_name=${encodeURIComponent(group.editionName)}`
+              `/api/regulations/analyze?file_id=${encodeURIComponent(uploadData.filename)}&edition=${group.edition}&edition_name=${encodeURIComponent(group.editionName)}`
             )
             
             const analyzeData = analyzeResponse.data

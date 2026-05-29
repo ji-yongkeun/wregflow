@@ -13,8 +13,8 @@ export function ShareButton({ analysis }) {
 
     setLoading(true)
     try {
-      const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api'
-      const response = await fetch(`${BASE}/shares/create`, {
+      const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
+      const response = await fetch(`${BASE}/api/shares/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

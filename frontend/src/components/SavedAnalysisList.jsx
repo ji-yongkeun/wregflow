@@ -3,7 +3,7 @@ import IntegrationPanel from './IntegrationPanel'
 import IntegrationResultView from './IntegrationResultView'
 import AnalysisDetailView from './AnalysisDetailView'
 
-const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api'
+const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
 export function SavedAnalysisList() {
   const [analyses, setAnalyses] = useState([])
@@ -45,7 +45,7 @@ export function SavedAnalysisList() {
   const fetchAnalyses = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${BASE}/regulations/analysis/list`)
+      const response = await fetch(`${BASE}/api/regulations/analysis/list`)
       const data = await response.json()
       if (data.status === 'success') {
         setAnalyses(data.analyses)
@@ -59,7 +59,7 @@ export function SavedAnalysisList() {
 
   const fetchIntegrations = async () => {
     try {
-      const response = await fetch(`${BASE}/regulations/integration/list`)
+      const response = await fetch(`${BASE}/api/regulations/integration/list`)
       const data = await response.json()
       if (data.status === 'success') {
         setIntegrations(data.integrations)
@@ -73,7 +73,7 @@ export function SavedAnalysisList() {
     if (!window.confirm('이 분석을 삭제하시겠습니까?')) return
     try {
       const response = await fetch(
-        `${BASE}/analysis/delete/${id}`,
+        `${BASE}/api/analysis/delete/${id}`,
         { method: 'DELETE' }
       )
       const data = await response.json()
@@ -95,7 +95,7 @@ export function SavedAnalysisList() {
   const loadAnalysisDetail = async (analysisId) => {
     try {
       const response = await fetch(
-        `${BASE}/analysis/detail/${analysisId}`
+        `${BASE}/api/analysis/detail/${analysisId}`
       )
       const data = await response.json()
       
@@ -114,7 +114,7 @@ export function SavedAnalysisList() {
     if (!window.confirm('이 통합 분석을 삭제하시겠습니까?')) return
     try {
       const response = await fetch(
-        `${BASE}/integration/delete/${id}`,
+        `${BASE}/api/integration/delete/${id}`,
         { method: 'DELETE' }
       )
       const data = await response.json()
@@ -162,7 +162,7 @@ export function SavedAnalysisList() {
 
   const handleViewIntegrationDetail = async (id) => {
     try {
-      const response = await fetch(`${BASE}/integration/detail/${id}`)
+      const response = await fetch(`${BASE}/api/integration/detail/${id}`)
       const data = await response.json()
       if (response.ok && data.status === 'success') {
         setSelectedIntegration(data.integration)
@@ -222,7 +222,7 @@ export function SavedAnalysisList() {
                     <button
                       className="btn-download-word"
                       onClick={() => {
-                        window.location.href = `${BASE}/download/integration/${integration.id}/word`
+                        window.location.href = `${BASE}/api/download/integration/${integration.id}/word`
                       }}
                     >
                       📄 Word
@@ -230,7 +230,7 @@ export function SavedAnalysisList() {
                     <button
                       className="btn-download-excel"
                       onClick={() => {
-                        window.location.href = `${BASE}/download/integration/${integration.id}/excel`
+                        window.location.href = `${BASE}/api/download/integration/${integration.id}/excel`
                       }}
                     >
                       📊 Excel
