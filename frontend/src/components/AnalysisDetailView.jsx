@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import SwimlaneDiagram from './SwimlaneDiagram'
 import DecisionTable from './DecisionTable'
-import { downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadSingleAnalysisExcel, downloadSwimlanePPT, downloadRaciPPT, downloadDecisionsPPT, downloadSwimlaneImage, downloadRaciImage, downloadDecisionsImage } from '../utils/downloadUtils'
+import { downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadSingleAnalysisExcel, downloadSwimlanePPT, downloadRaciPPT, downloadDecisionsPPT, downloadElementAsPPT } from '../utils/downloadUtils'
 import ExcelDropdownButton from './ExcelDropdownButton'
 
 // 알려진 RACI 컬럼 순서/레이블
@@ -90,22 +90,20 @@ function RACIMatrix({ data }) {
 export function AnalysisDetailView({ analysis, onClose }) {
   const [selectedTab, setSelectedTab] = useState('swimlane')
   const [copiedJson, setCopiedJson] = useState(false)
+  const vizDiagramRef = useRef(null)
 
   if (!analysis) {
     return null
   }
 
-  const handleDownloadImage = () => {
+  const handleDownloadImagePPT = async () => {
     const date = new Date().toISOString().slice(0, 10)
-    const parse = v => typeof v === 'string' ? JSON.parse(v) : v
-
-    if (selectedTab === 'swimlane') {
-      downloadSwimlaneImage(parse(analysis.swim_lanes), analysis.process_name, null, `swimlane_${date}.png`)
-    } else if (selectedTab === 'raci') {
-      downloadRaciImage(parse(analysis.raci), analysis.process_name, `raci_${date}.png`)
-    } else if (selectedTab === 'decisions') {
-      downloadDecisionsImage(parse(analysis.decisions), analysis.process_name, `decisions_${date}.png`)
-    }
+    const tabTitles = { swimlane: 'Swim Lane 다이어그램', raci: 'RACI 매트릭스', decisions: '의사결정 포인트' }
+    await downloadElementAsPPT(
+      vizDiagramRef.current,
+      `${analysis.process_name || ''} — ${tabTitles[selectedTab] || ''}`.trim(),
+      `${selectedTab}_image_${date}.pptx`
+    )
   }
 
   const handleDownloadPPT = async () => {
@@ -321,11 +319,11 @@ export function AnalysisDetailView({ analysis, onClose }) {
                   <h3>{currentTab.title}</h3>
                   <div className="download-buttons">
                     <button
-                      className="btn-download-image"
-                      onClick={handleDownloadImage}
-                      title="화면에 보이는 다이어그램을 PNG로 저장"
+                      className="btn-download-ppt-image"
+                      onClick={handleDownloadImagePPT}
+                      title="화면 이미지 그대로 PPT로 저장"
                     >
-                      📥 이미지 저장
+                      🖼️ 이미지(PPT)저장
                     </button>
                     <button
                       className="btn-download-ppt"
@@ -363,7 +361,7 @@ export function AnalysisDetailView({ analysis, onClose }) {
 
                 {/* 시각화 */}
                 {currentTab.component && (
-                  <div className="viz-diagram">
+                  <div className="viz-diagram" ref={vizDiagramRef}>
                     {currentTab.component}
                   </div>
                 )}

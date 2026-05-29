@@ -2803,6 +2803,7 @@ footer {
 }
 
 .btn-download-image,
+.btn-download-ppt-image,
 .btn-download-ppt,
 .btn-download-csv,
 .btn-download-json,
@@ -2820,6 +2821,7 @@ footer {
 }
 
 .btn-download-image:hover,
+.btn-download-ppt-image:hover,
 .btn-download-ppt:hover,
 .btn-download-csv:hover,
 .btn-download-json:hover {
@@ -2844,6 +2846,15 @@ footer {
   border-color: #60a5fa;
 }
 
+.btn-download-ppt-image {
+  background: rgba(234, 88, 12, 0.2);
+  border-color: #ea580c;
+  color: #fdba74;
+}
+.btn-download-ppt-image:hover {
+  background: rgba(234, 88, 12, 0.35);
+  border-color: #fb923c;
+}
 .btn-download-ppt {
   background: rgba(168, 85, 247, 0.2);
   border-color: #a855f7;
@@ -3435,6 +3446,7 @@ footer {
 
 /* 다운로드 버튼 공통 */
 .btn-download-image,
+.btn-download-ppt-image,
 .btn-download-ppt,
 .btn-download-csv,
 .btn-download-json,
@@ -3457,6 +3469,15 @@ footer {
 }
 .btn-download-image:hover {
   background: rgba(16, 185, 129, 0.3);
+  transform: translateY(-1px);
+}
+.btn-download-ppt-image {
+  background: rgba(234, 88, 12, 0.15);
+  border-color: rgba(234, 88, 12, 0.4);
+  color: #fdba74;
+}
+.btn-download-ppt-image:hover {
+  background: rgba(234, 88, 12, 0.3);
   transform: translateY(-1px);
 }
 .btn-download-ppt {

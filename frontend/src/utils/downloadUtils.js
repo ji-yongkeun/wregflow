@@ -1003,6 +1003,62 @@ export const downloadSwimlanePPT = async (swimData, processName, filename) => {
   }
 }
 
+// DOM 요소를 html2canvas로 캡처 후 이미지 그대로 PPT 슬라이드에 삽입
+export const downloadElementAsPPT = async (element, title = '', filename = 'diagram.pptx') => {
+  try {
+    if (!element) { alert('캡처할 요소를 찾을 수 없습니다'); return }
+
+    const html2canvas = (await import('html2canvas')).default
+    const pptxgen    = (await import('pptxgenjs')).default
+
+    const canvas = await html2canvas(element, {
+      backgroundColor: '#f8fafc',
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+    })
+
+    const imgData = canvas.toDataURL('image/png')
+    const imgW    = canvas.width  / 2
+    const imgH    = canvas.height / 2
+
+    const pptx = new pptxgen()
+    pptx.layout = 'LAYOUT_WIDE'
+    pptx.title  = title || 'Diagram'
+
+    const slide = pptx.addSlide()
+    slide.background = { fill: '0A0F1E' }
+
+    const M       = 0.2
+    const TITLE_H = title ? 0.42 : 0
+    const slideW  = 13.33 - M * 2
+    const slideH  = 7.5  - M * 2 - TITLE_H
+
+    if (title) {
+      slide.addText(title, {
+        x: M, y: M * 0.5, w: slideW, h: TITLE_H,
+        fontSize: 16, bold: true, color: '93C5FD',
+        fontFace: 'Malgun Gothic', align: 'left',
+      })
+    }
+
+    const ratio = imgW / imgH
+    let iW = slideW
+    let iH = iW / ratio
+    if (iH > slideH) { iH = slideH; iW = iH * ratio }
+    const iX = M + (slideW - iW) / 2
+    const iY = M + TITLE_H + (slideH - iH) / 2
+
+    slide.addImage({ data: imgData, x: iX, y: iY, w: iW, h: iH })
+
+    await pptx.writeFile({ fileName: filename })
+  } catch (err) {
+    console.error('이미지 PPT 저장 실패:', err)
+    alert('이미지 PPT 저장에 실패했습니다: ' + err.message)
+  }
+}
+
 // 엑셀 다운로드 공통 요청 함수
 export const downloadProcessExcel = async (payload, type) => {
   try {

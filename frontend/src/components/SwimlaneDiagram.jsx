@@ -15,11 +15,25 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
-const LANE_HEIGHT = 150
-const STEP_WIDTH = 240
-const HEADER_WIDTH = 185
-const NODE_WIDTH = 170
-const NODE_HEIGHT = 88
+import { UserOutlined, BankOutlined, SolutionOutlined, SafetyCertificateOutlined, LineChartOutlined, FileTextOutlined } from '@ant-design/icons'
+
+const LANE_WIDTH = 190
+const HEADER_HEIGHT = 100
+const NODE_WIDTH = 150
+const NODE_HEIGHT = 64
+const Y_SPACING = 90
+
+// ── Role to Icon Mapper ───────────────────────────────────────────────────────
+const getRoleIcon = (roleName) => {
+  if (!roleName) return <BankOutlined />
+  const n = roleName.toLowerCase()
+  if (n.includes('고객')) return <UserOutlined />
+  if (n.includes('주택') || n.includes('공사') || n.includes('lh')) return <BankOutlined />
+  if (n.includes('담당자')) return <SolutionOutlined />
+  if (n.includes('책임자')) return <SafetyCertificateOutlined />
+  if (n.includes('소관부장') || n.includes('부장')) return <LineChartOutlined />
+  return <BankOutlined />
+}
 
 // ── Lane background node ──────────────────────────────────────────────────────
 function LaneGroupNode({ data }) {
@@ -27,40 +41,31 @@ function LaneGroupNode({ data }) {
     <div style={{
       width: '100%',
       height: '100%',
-      background: data.isEven
-        ? 'rgba(30, 41, 59, 0.55)'
-        : 'rgba(15, 23, 42, 0.55)',
-      borderBottom: '1px dashed rgba(99, 102, 241, 0.2)',
+      background: data.isEven ? '#f8fafc' : '#ffffff',
+      borderRight: '1px dashed #cbd5e1',
       position: 'relative',
       pointerEvents: 'none',
+      boxSizing: 'border-box'
     }}>
       <div style={{
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: `${HEADER_WIDTH - 16}px`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '8px 10px',
-        boxSizing: 'border-box',
-        borderRight: '1px solid rgba(99, 102, 241, 0.25)',
+        position: 'absolute', top: 0, left: 0, right: 0,
+        height: `${HEADER_HEIGHT}px`,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        borderBottom: '2px solid #e2e8f0',
+        background: 'linear-gradient(to bottom, #ffffff, #f1f5f9)'
       }}>
         <div style={{
-          background: 'linear-gradient(160deg, #1e293b 0%, #0f172a 100%)',
-          border: '1.5px solid rgba(79, 70, 229, 0.9)',
-          borderRadius: '10px',
-          padding: '10px 8px',
-          color: '#93c5fd',
-          fontSize: '12px',
-          fontWeight: '700',
-          textAlign: 'center',
-          wordBreak: 'break-all',
-          lineHeight: '1.5',
-          width: '100%',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
-          letterSpacing: '0.2px',
+          fontSize: '22px', color: '#3b82f6', marginBottom: '8px',
+          background: '#e0f2fe', borderRadius: '50%',
+          width: '44px', height: '44px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+        }}>
+          {getRoleIcon(data.role)}
+        </div>
+        <div style={{
+          color: '#1e293b', fontSize: '12px', fontWeight: '700',
+          textAlign: 'center', padding: '0 8px', lineHeight: '1.2'
         }}>
           {data.role}
         </div>
@@ -73,56 +78,34 @@ function LaneGroupNode({ data }) {
 function ProcessNode({ data, selected }) {
   return (
     <div style={{
-      width: `${NODE_WIDTH}px`,
+      width: 'fit-content',
+      minWidth: '120px',
+      maxWidth: '170px',
       minHeight: `${NODE_HEIGHT}px`,
-      background: selected
-        ? 'linear-gradient(135deg, rgba(99,102,241,0.4) 0%, rgba(79,70,229,0.55) 100%)'
-        : 'linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(79,70,229,0.32) 100%)',
-      border: `2px solid ${selected ? '#a5b4fc' : 'rgba(79,70,229,0.9)'}`,
-      borderRadius: '14px',
-      padding: '10px 12px',
-      boxSizing: 'border-box',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backdropFilter: 'blur(12px)',
-      boxShadow: selected
-        ? '0 0 30px rgba(99,102,241,0.65), 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)'
-        : '0 4px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-      cursor: 'pointer',
-      transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
+      background: '#ffffff',
+      border: `2px solid ${selected ? '#3b82f6' : '#cbd5e1'}`,
+      borderRadius: '8px',
+      display: 'flex', flexDirection: 'row', alignItems: 'stretch',
+      boxShadow: selected ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 2px 5px rgba(0,0,0,0.05)',
+      cursor: 'pointer', overflow: 'hidden', transition: 'all 0.2s',
     }}>
-      <Handle type="target" position={Position.Left}
-        style={{ background: '#4f46e5', border: '2px solid #818cf8', width: '10px', height: '10px' }} />
+      <Handle type="target" position={Position.Top} style={{ background: '#3b82f6', border: 'none' }} />
       <div style={{
-        background: 'rgba(99,102,241,0.3)',
-        border: '1px solid rgba(99,102,241,0.5)',
-        color: '#a5b4fc',
-        fontSize: '10px',
-        fontWeight: '800',
-        padding: '2px 10px',
-        borderRadius: '20px',
-        marginBottom: '7px',
-        letterSpacing: '1px',
+        width: '32px', background: '#3b82f6', color: '#ffffff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontWeight: 'bold', fontSize: '14px'
       }}>
-        STEP {data.order}
+        {data.order}
       </div>
-      <div style={{
-        color: '#e0e7ff',
-        fontSize: '12px',
-        fontWeight: '600',
-        textAlign: 'center',
-        lineHeight: '1.5',
-        display: '-webkit-box',
-        WebkitLineClamp: 3,
-        WebkitBoxOrient: 'vertical',
-        overflow: 'hidden',
-      }}>
-        {data.action}
+      <div style={{ flex: 1, padding: '6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{
+          color: '#1e293b', fontSize: '11px', fontWeight: '600', lineHeight: '1.3',
+          wordBreak: 'keep-all', overflowWrap: 'break-word'
+        }}>
+          {data.action}
+        </div>
       </div>
-      <Handle type="source" position={Position.Right}
-        style={{ background: '#4f46e5', border: '2px solid #818cf8', width: '10px', height: '10px' }} />
+      <Handle type="source" position={Position.Bottom} style={{ background: '#3b82f6', border: 'none' }} />
     </div>
   )
 }
@@ -130,60 +113,38 @@ function ProcessNode({ data, selected }) {
 // ── Decision node ─────────────────────────────────────────────────────────────
 function DecisionNode({ data, selected }) {
   return (
-    <div style={{ width: `${NODE_WIDTH}px`, minHeight: `${NODE_HEIGHT}px`, position: 'relative' }}>
-      <Handle type="target" position={Position.Left}
-        style={{ background: '#d97706', border: '2px solid #fbbf24', width: '10px', height: '10px', zIndex: 10 }} />
-      {/* Rotated shadow layer */}
+    <div style={{ 
+      width: 'fit-content', 
+      minWidth: '120px', 
+      maxWidth: '170px', 
+      minHeight: `${NODE_HEIGHT}px`, 
+      position: 'relative',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      <Handle type="target" position={Position.Top} style={{ background: '#f59e0b', border: 'none' }} />
       <div style={{
-        position: 'absolute',
-        inset: '5px',
-        background: 'linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(217,119,6,0.25) 100%)',
-        border: `1.5px solid ${selected ? '#fbbf24' : 'rgba(217,119,6,0.6)'}`,
-        borderRadius: '10px',
-        transform: 'rotate(-4deg)',
-        transition: 'all 0.2s ease',
-      }} />
-      <div style={{
-        position: 'relative',
-        zIndex: 1,
-        width: '100%',
-        height: '100%',
-        background: selected
-          ? 'linear-gradient(135deg, rgba(254,240,138,0.22) 0%, rgba(253,224,71,0.3) 100%)'
-          : 'linear-gradient(135deg, rgba(254,240,138,0.09) 0%, rgba(253,224,71,0.15) 100%)',
-        border: `2px solid ${selected ? '#fbbf24' : 'rgba(217,119,6,0.85)'}`,
-        borderRadius: '14px',
-        padding: '10px 12px',
-        boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backdropFilter: 'blur(12px)',
-        boxShadow: selected
-          ? '0 0 30px rgba(245,158,11,0.65), 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)'
-          : '0 4px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-        cursor: 'pointer',
+        flex: 1,
+        background: '#fffbeb',
+        border: `2px solid ${selected ? '#f59e0b' : '#fcd34d'}`,
+        borderRadius: '8px', padding: '6px 8px',
+        display: 'flex', flexDirection: 'row', alignItems: 'center',
+        boxShadow: selected ? '0 4px 12px rgba(245, 158, 11, 0.3)' : '0 2px 5px rgba(0,0,0,0.05)',
+        cursor: 'pointer', boxSizing: 'border-box'
       }}>
-        <div style={{ color: '#fbbf24', fontSize: '10px', fontWeight: '800', marginBottom: '6px', letterSpacing: '0.5px' }}>
-          ⚡ 의사결정
-        </div>
         <div style={{
-          color: '#fef3c7',
-          fontSize: '12px',
-          fontWeight: '600',
-          textAlign: 'center',
-          lineHeight: '1.5',
-          display: '-webkit-box',
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
+          width: '20px', height: '20px', background: '#f59e0b',
+          transform: 'rotate(45deg)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginRight: '8px', marginLeft: '2px', flexShrink: 0
         }}>
+          <span style={{ color: '#fff', transform: 'rotate(-45deg)', fontSize: '10px', fontWeight: 'bold' }}>?</span>
+        </div>
+        <div style={{ color: '#92400e', fontSize: '11px', fontWeight: '600', lineHeight: '1.3', wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
           {data.action}
         </div>
       </div>
-      <Handle type="source" position={Position.Right}
-        style={{ background: '#d97706', border: '2px solid #fbbf24', width: '10px', height: '10px', zIndex: 10 }} />
+      <Handle type="source" position={Position.Bottom} id="yes" style={{ background: '#10b981', border: 'none', left: '30%' }} />
+      <Handle type="source" position={Position.Bottom} id="no" style={{ background: '#ef4444', border: 'none', left: '70%' }} />
     </div>
   )
 }
@@ -195,105 +156,90 @@ const nodeTypes = {
 }
 
 // ── Graph builder ─────────────────────────────────────────────────────────────
-// 데이터 감지:
-//   · 전체 step의 order가 모두 고유 → Global 순서 (레인 간 연결, 전체 흐름)
-//   · 레인마다 order가 중복       → Local  순서 (레인 내부만 연결)
 function buildFlowGraph(swimData) {
-  const allOrders = swimData.flatMap(l => (l.steps || []).map(s => s.order || 0)).filter(o => o > 0)
-  const isGlobal  = new Set(allOrders).size === allOrders.length
+  const allSteps = []
+  swimData.forEach((lane, li) => {
+    (lane.steps || []).forEach((step, si) => {
+      let o = parseInt(step.order)
+      if (isNaN(o) || o <= 0) o = si + 1
+      allSteps.push({ ...step, laneIdx: li, role: lane.role, order: o, originalIndex: si })
+    })
+  })
 
-  let maxOrder = 1
-  allOrders.forEach(o => { if (o > maxOrder) maxOrder = o })
+  // 모든 스텝을 order 순으로 전역 정렬 (중복 시 레인 순서로)
+  allSteps.sort((a, b) => {
+    if (a.order !== b.order) return a.order - b.order
+    return a.laneIdx - b.laneIdx
+  })
 
-  const totalWidth  = HEADER_WIDTH + maxOrder * STEP_WIDTH + 80
-  const totalHeight = swimData.length * LANE_HEIGHT
+  const totalWidth = swimData.length * LANE_WIDTH
   const nodes = []
   const edges = []
+
+  // 각 레인별 Y 좌표 오프셋 관리
+  const laneYOffsets = swimData.map(() => HEADER_HEIGHT + 20)
+
+  allSteps.forEach(step => {
+    // Left-align within the lane with a 10px margin, since width is now dynamic
+    const x = step.laneIdx * LANE_WIDTH + 10
+    
+    // 현재 레인의 Y 좌표에만 의존하여 가장 위쪽으로 빈 공간 없이 촘촘하게 배치
+    let y = laneYOffsets[step.laneIdx]
+    
+    nodes.push({
+      id: `step-${step.laneIdx}-${step.originalIndex}`,
+      type: step.decision ? 'decisionNode' : 'processNode',
+      position: { x, y },
+      data: step, // order 값이 명시적으로 들어있음
+      draggable: false, zIndex: 10,
+    })
+
+    // 글자 길이를 기반으로 예상 높이를 계산하여 다이나믹한 세로 간격 확보 (박스 겹침 방지)
+    const textLen = (step.action || '').length
+    const charsPerLine = 15
+    const estimatedLines = Math.ceil(textLen / charsPerLine)
+    const estimatedHeight = Math.max(NODE_HEIGHT, 16 + estimatedLines * 15)
+    const dynamicSpacing = estimatedHeight + 35 // 화살표가 보일 수 있도록 적당한 마진(35px) 부여
+
+    // 다음 스텝을 위해 해당 레인의 Y 오프셋만 증가
+    laneYOffsets[step.laneIdx] = y + dynamicSpacing
+  })
+
+  const totalHeight = Math.max(...laneYOffsets) + 60
 
   // ── Lane 배경 노드 ────────────────────────────────────────────────────────
   swimData.forEach((lane, li) => {
     nodes.push({
       id: `lane-${li}`,
       type: 'laneGroup',
-      position: { x: 0, y: li * LANE_HEIGHT },
-      style: { width: totalWidth, height: LANE_HEIGHT },
+      position: { x: li * LANE_WIDTH, y: 0 },
+      style: { width: LANE_WIDTH, height: totalHeight },
       data: { role: lane.role, isEven: li % 2 === 0 },
       selectable: false, draggable: false, focusable: false, zIndex: 0,
     })
   })
 
-  if (isGlobal) {
-    // ── Global: 전체 order로 배치 + 레인 간 연결 ─────────────────────────
-    const allSteps = []
-    swimData.forEach((lane, li) =>
-      (lane.steps || []).forEach((step, si) =>
-        allSteps.push({ ...step, laneIdx: li, role: lane.role, order: step.order || si + 1 })
-      )
-    )
-    allSteps.sort((a, b) => a.order - b.order)
+  // ── 전체 글로벌 엣지 연결 (순서대로 화살표 생성) ─────────────────────────
+  for (let i = 0; i < allSteps.length - 1; i++) {
+    const curr = allSteps[i]
+    const next = allSteps[i + 1]
+    const cross = curr.laneIdx !== next.laneIdx
 
-    allSteps.forEach(step => {
-      const x = HEADER_WIDTH + (step.order - 1) * STEP_WIDTH + (STEP_WIDTH - NODE_WIDTH) / 2
-      const y = step.laneIdx * LANE_HEIGHT + (LANE_HEIGHT - NODE_HEIGHT) / 2
-      nodes.push({
-        id: `step-${step.order}`,
-        type: step.decision ? 'decisionNode' : 'processNode',
-        position: { x, y },
-        data: step,
-        draggable: false, zIndex: 10,
-      })
-    })
+    let sourceHandle = curr.decision ? 'yes' : undefined
+    let label = curr.decision ? '예' : undefined
 
-    for (let i = 0; i < allSteps.length - 1; i++) {
-      const curr = allSteps[i], next = allSteps[i + 1]
-      const cross = curr.laneIdx !== next.laneIdx
-      edges.push({
-        id: `edge-${curr.order}-${next.order}`,
-        source: `step-${curr.order}`,
-        target: `step-${next.order}`,
-        type: 'smoothstep',
-        animated: cross,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: cross ? '#818cf8' : '#6366f1',
-          width: 16, height: 16,
-        },
-        style: {
-          stroke: cross ? '#818cf8' : '#6366f1',
-          strokeWidth: 2.5,
-          filter: cross ? 'drop-shadow(0 0 4px rgba(99,102,241,0.5))' : undefined,
-        },
-      })
-    }
-  } else {
-    // ── Local: 레인별 독립 배치 + 레인 내부 연결만 ───────────────────────
-    swimData.forEach((lane, li) => {
-      const sorted = [...(lane.steps || [])].sort((a, b) => (a.order || 0) - (b.order || 0))
-      sorted.forEach((step, si) => {
-        const lo = step.order || si + 1
-        const nodeId = `step-l${li}-o${lo}`
-        const x = HEADER_WIDTH + (lo - 1) * STEP_WIDTH + (STEP_WIDTH - NODE_WIDTH) / 2
-        const y = li * LANE_HEIGHT + (LANE_HEIGHT - NODE_HEIGHT) / 2
-        nodes.push({
-          id: nodeId,
-          type: step.decision ? 'decisionNode' : 'processNode',
-          position: { x, y },
-          data: { ...step, laneIdx: li, role: lane.role },
-          draggable: false, zIndex: 10,
-        })
-        if (si > 0) {
-          const prevOrder = sorted[si - 1].order || si
-          edges.push({
-            id: `edge-l${li}-${prevOrder}-${lo}`,
-            source: `step-l${li}-o${prevOrder}`,
-            target: nodeId,
-            type: 'smoothstep',
-            animated: false,
-            markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1', width: 16, height: 16 },
-            style: { stroke: '#6366f1', strokeWidth: 2.5 },
-          })
-        }
-      })
+    edges.push({
+      id: `edge-${i}`,
+      source: `step-${curr.laneIdx}-${curr.originalIndex}`,
+      target: `step-${next.laneIdx}-${next.originalIndex}`,
+      sourceHandle,
+      type: 'smoothstep',
+      animated: cross,
+      label,
+      labelStyle: { fill: '#3b82f6', fontWeight: 700, fontSize: 10 },
+      labelBgStyle: { fill: 'rgba(255,255,255,0.9)', padding: 3 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6', width: 14, height: 14 },
+      style: { stroke: '#94a3b8', strokeWidth: 1.5 },
     })
   }
 
@@ -713,49 +659,50 @@ function SwimlaneDiagramInner({ swimData, raciData, decisionsData }) {
           zoomOnScroll
           minZoom={0.25}
           maxZoom={2.5}
-          style={{ background: '#0a0f1e' }}
+          style={{ background: '#f8fafc' }}
           deleteKeyCode={null}
         >
           <Background
             variant={BackgroundVariant.Dots}
             gap={28}
             size={1.2}
-            color="rgba(99,102,241,0.18)"
+            color="#cbd5e1"
           />
           <Controls
             style={{
-              background: 'rgba(30,41,59,0.95)',
-              border: '1px solid rgba(99,102,241,0.35)',
+              background: 'rgba(255,255,255,0.95)',
+              border: '1px solid #cbd5e1',
               borderRadius: '10px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
             }}
           />
           <MiniMap
             position="bottom-left"
             style={{
-              background: 'rgba(10,15,30,0.95)',
-              border: '1px solid rgba(99,102,241,0.3)',
+              background: 'rgba(255,255,255,0.95)',
+              border: '1px solid #cbd5e1',
               borderRadius: '10px',
             }}
             nodeColor={n => {
-              if (n.type === 'laneGroup') return 'rgba(30,41,59,0.9)'
-              if (n.type === 'decisionNode') return '#d97706'
-              return '#4f46e5'
+              if (n.type === 'laneGroup') return '#f1f5f9'
+              if (n.type === 'decisionNode') return '#f59e0b'
+              return '#3b82f6'
             }}
-            maskColor="rgba(10,15,30,0.5)"
+            maskColor="rgba(248,250,252,0.6)"
           />
           <Panel position="top-left" style={{ margin: '10px' }}>
             <div style={{
-              background: 'rgba(10,15,30,0.85)',
-              border: '1px solid rgba(99,102,241,0.3)',
+              background: 'rgba(255,255,255,0.85)',
+              border: '1px solid #cbd5e1',
               borderRadius: '8px',
               padding: '5px 12px',
               fontSize: '11px',
-              color: '#94a3b8',
+              color: '#475569',
               backdropFilter: 'blur(8px)',
               pointerEvents: 'none',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
             }}>
-              <span style={{ color: '#818cf8' }}>💡</span> 카드 클릭 → 상세 정보 &nbsp;·&nbsp; 스크롤 → 확대/축소 &nbsp;·&nbsp; 드래그 → 이동
+              <span style={{ color: '#3b82f6' }}>💡</span> 카드 클릭 → 상세 정보 &nbsp;·&nbsp; 스크롤 → 확대/축소 &nbsp;·&nbsp; 드래그 → 이동
             </div>
           </Panel>
         </ReactFlow>
@@ -766,36 +713,37 @@ function SwimlaneDiagramInner({ swimData, raciData, decisionsData }) {
         marginTop: '10px',
         display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '14px',
         padding: '10px 18px',
-        background: 'rgba(99,102,241,0.06)',
-        border: '1px solid rgba(99,102,241,0.2)',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
         borderRadius: '10px',
-        fontSize: '12px', color: '#cbd5e1',
+        fontSize: '12px', color: '#475569',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.02)'
       }}>
-        <span style={{ color: '#93c5fd', fontWeight: '700' }}>📌 범례</span>
+        <span style={{ color: '#3b82f6', fontWeight: '700' }}>📌 범례</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
           <div style={{
             width: '34px', height: '16px',
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(79,70,229,0.48))',
-            border: '2px solid #4f46e5', borderRadius: '4px',
+            background: '#ffffff',
+            border: '2px solid #cbd5e1', borderRadius: '4px',
           }} />
           <span>일반 프로세스</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
           <div style={{
             width: '34px', height: '16px',
-            background: 'linear-gradient(135deg, rgba(245,158,11,0.22), rgba(217,119,6,0.35))',
-            border: '2px solid #d97706', borderRadius: '4px',
+            background: '#fffbeb',
+            border: '2px solid #fcd34d', borderRadius: '4px',
           }} />
           <span>의사결정 포인트</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
           <div style={{
-            width: '30px', height: '2.5px', background: '#818cf8', position: 'relative',
+            width: '30px', height: '2.5px', background: '#94a3b8', position: 'relative',
             display: 'flex', alignItems: 'center',
           }}>
             <div style={{
               position: 'absolute', right: '-5px',
-              borderLeft: '7px solid #818cf8',
+              borderLeft: '7px solid #3b82f6',
               borderTop: '4px solid transparent', borderBottom: '4px solid transparent',
             }} />
           </div>

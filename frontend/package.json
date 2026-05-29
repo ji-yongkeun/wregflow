@@ -10,6 +10,7 @@
     "lint": "eslint src --ext js,jsx"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.2.5",
     "@xyflow/react": "^12.10.2",
     "axios": "^1.6.0",
     "html2canvas": "^1.4.1",
