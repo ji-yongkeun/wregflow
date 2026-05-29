@@ -194,3 +194,27 @@ def list_files():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"파일 목록 조회 중 오류가 발생했습니다: {str(e)}")
 
+@router.get("/analysis/list")
+def get_analysis_results(db: Session = Depends(get_db)):
+    """
+    저장된 분석 결과 목록 조회
+    """
+    try:
+        results = db.query(AnalysisResult).all()
+        return {
+            "status": "success",
+            "analyses": [
+                {
+                    "id": r.id,
+                    "file_id": r.file_id,
+                    "edition": r.edition,
+                    "swim_lanes_count": r.swim_lanes_count,
+                    "raci_count": r.raci_count,
+                    "decisions_count": r.decisions_count,
+                    "created_at": r.created_at.isoformat() if hasattr(r, 'created_at') else None
+                }
+                for r in results
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"분석 결과 조회 실패: {str(e)}")
