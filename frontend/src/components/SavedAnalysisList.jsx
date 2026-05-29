@@ -319,7 +319,7 @@ export function SavedAnalysisList() {
                     <div className="analysis-info">
                       <h4>{analysis.file_name}</h4>
                       <p>{analysis.edition ? `${analysis.edition}편` : ''}</p>
-                      <p className="analysis-process">{analysis.process_name || '(프로세스 미설정)'}</p>
+                      <p className="analysis-process">{analysis.process_name || analysis.file_name}</p>
                     </div>
 
                     <div className="analysis-actions">
