@@ -18,7 +18,7 @@ export function IntegrationPanel({ analysisIds, analyses, onClose, onComplete })
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'}/api/integration/create`,
+        `${(import.meta.env.VITE_API_BASE_URL || "http://localhost:8001").replace(/\/api\/?$/, "")}/api/integration/create`,
         {
           method: 'POST',
           headers: {

@@ -1,6 +1,11 @@
 import axios from 'axios'
 
-const BASE = import.meta.env.VITE_API_BASE_URL || ''
+const BASE = (() => {
+  let url = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+  if (url.endsWith('/api')) url = url.slice(0, -4);
+  if (url.endsWith('/api/')) url = url.slice(0, -5);
+  return url;
+})();
 
 const axiosInstance = axios.create({
   baseURL: BASE

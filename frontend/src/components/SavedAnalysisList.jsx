@@ -3,7 +3,12 @@ import IntegrationPanel from './IntegrationPanel'
 import IntegrationResultView from './IntegrationResultView'
 import AnalysisDetailView from './AnalysisDetailView'
 
-const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
+const BASE = (() => {
+  let url = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+  if (url.endsWith('/api')) url = url.slice(0, -4);
+  if (url.endsWith('/api/')) url = url.slice(0, -5);
+  return url;
+})();
 
 export function SavedAnalysisList() {
   const [analyses, setAnalyses] = useState([])

@@ -18,7 +18,12 @@ export function LoginPanel() {
 
   const fetchUsers = async () => {
     try {
-      const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
+      const BASE = (() => {
+  let url = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+  if (url.endsWith('/api')) url = url.slice(0, -4);
+  if (url.endsWith('/api/')) url = url.slice(0, -5);
+  return url;
+})();
       const response = await fetch(`${BASE}/api/permissions/roles`)
       if (!response.ok) throw new Error('API 응답 오류')
       const data = await response.json()

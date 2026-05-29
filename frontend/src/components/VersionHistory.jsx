@@ -15,7 +15,12 @@ export function VersionHistory({ fileId }) {
   const fetchVersions = async () => {
     setLoading(true)
     try {
-      const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
+      const BASE = (() => {
+  let url = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+  if (url.endsWith('/api')) url = url.slice(0, -4);
+  if (url.endsWith('/api/')) url = url.slice(0, -5);
+  return url;
+})();
       const response = await fetch(`${BASE}/api/versions/file/${encodeURIComponent(fileId)}`)
       const data = await response.json()
       
