@@ -14,6 +14,9 @@ export function SavedAnalysisList() {
   const [analyses, setAnalyses] = useState([])
   const [filteredAnalyses, setFilteredAnalyses] = useState([])
   const [selectedEdition, setSelectedEdition] = useState(null)
+  const [categoryMainFilter, setCategoryMainFilter] = useState(null)
+  const [categoryMidFilter, setCategoryMidFilter] = useState(null)
+  const [categorySubFilter, setCategorySubFilter] = useState(null)
   const [loading, setLoading] = useState(false)
   const [expandedId, setExpandedId] = useState(null)
   const [selectedAnalysisIds, setSelectedAnalysisIds] = useState(new Set())
@@ -21,6 +24,7 @@ export function SavedAnalysisList() {
 
   // 통합 분석 관련 state 추가
   const [integrations, setIntegrations] = useState([])
+  const [filteredIntegrations, setFilteredIntegrations] = useState([])
   const [showIntegrations, setShowIntegrations] = useState(false)
   const [selectedIntegration, setSelectedIntegration] = useState(null)
   const [selectedAnalysisDetail, setSelectedAnalysisDetail] = useState(null)
@@ -37,15 +41,38 @@ export function SavedAnalysisList() {
   }, [showIntegrations])
 
   useEffect(() => {
+    let filtered = analyses
     if (selectedEdition) {
-      const filtered = analyses.filter(a => a.edition === selectedEdition)
-      setFilteredAnalyses(filtered)
-    } else {
-      setFilteredAnalyses(analyses)
+      filtered = filtered.filter(a => a.edition === selectedEdition)
     }
+    if (categoryMainFilter) {
+      filtered = filtered.filter(a => a.category_main === categoryMainFilter)
+    }
+    if (categoryMidFilter) {
+      filtered = filtered.filter(a => a.category_mid === categoryMidFilter)
+    }
+    if (categorySubFilter) {
+      filtered = filtered.filter(a => a.category_sub === categorySubFilter)
+    }
+    setFilteredAnalyses(filtered)
+    
     // 필터 변경 시 선택 해제 처리
     setSelectedAnalysisIds(new Set())
-  }, [analyses, selectedEdition])
+  }, [analyses, selectedEdition, categoryMainFilter, categoryMidFilter, categorySubFilter])
+
+  useEffect(() => {
+    let filtered = integrations
+    if (categoryMainFilter) {
+      filtered = filtered.filter(i => i.category_main === categoryMainFilter)
+    }
+    if (categoryMidFilter) {
+      filtered = filtered.filter(i => i.category_mid === categoryMidFilter)
+    }
+    if (categorySubFilter) {
+      filtered = filtered.filter(i => i.category_sub === categorySubFilter)
+    }
+    setFilteredIntegrations(filtered)
+  }, [integrations, categoryMainFilter, categoryMidFilter, categorySubFilter])
 
   const fetchAnalyses = async () => {
     setLoading(true)
@@ -165,6 +192,9 @@ export function SavedAnalysisList() {
     name: `${edition}편`
   }))
 
+  const uniqueCategoryMids = [...new Set([...analyses, ...integrations].map(a => a.category_mid).filter(Boolean))].sort()
+  const uniqueCategorySubs = [...new Set([...analyses, ...integrations].map(a => a.category_sub).filter(Boolean))].sort()
+
   const handleViewIntegrationDetail = async (id) => {
     try {
       const response = await fetch(`${BASE}/api/integration/detail/${id}`)
@@ -211,17 +241,68 @@ export function SavedAnalysisList() {
         </button>
       </div>
 
+      {/* 3단 분류 필터 */}
+      <div className="institution-filter" style={{ marginBottom: '15px', display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+        <div>
+          <label style={{ marginRight: '5px' }}>대분류: </label>
+          <select 
+            value={categoryMainFilter || ''} 
+            onChange={(e) => setCategoryMainFilter(e.target.value || null)}
+            style={{ padding: '5px', borderRadius: '4px' }}
+          >
+            <option value="">전체</option>
+            <option value="은행">은행</option>
+            <option value="저축은행">저축은행</option>
+            <option value="보험">보험</option>
+            <option value="증권">증권</option>
+            <option value="공금융">공금융</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div>
+          <label style={{ marginRight: '5px' }}>중분류: </label>
+          <select 
+            value={categoryMidFilter || ''} 
+            onChange={(e) => setCategoryMidFilter(e.target.value || null)}
+            style={{ padding: '5px', borderRadius: '4px' }}
+          >
+            <option value="">전체</option>
+            {uniqueCategoryMids.map(mid => (
+              <option key={mid} value={mid}>{mid}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={{ marginRight: '5px' }}>소분류: </label>
+          <select 
+            value={categorySubFilter || ''} 
+            onChange={(e) => setCategorySubFilter(e.target.value || null)}
+            style={{ padding: '5px', borderRadius: '4px' }}
+          >
+            <option value="">전체</option>
+            {uniqueCategorySubs.map(sub => (
+              <option key={sub} value={sub}>{sub}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {showIntegrations ? (
         /* 통합 분석 탭 */
         <div className="integrations-list">
-          {integrations.length === 0 ? (
+          {filteredIntegrations.length === 0 ? (
             <p className="no-data">저장된 통합 분석이 없습니다</p>
           ) : (
-            integrations.map(integration => (
+            filteredIntegrations.map(integration => (
               <div key={integration.id} className="integration-card">
                 <div className="integration-header">
                   <div className="integration-info">
                     <h4>🔗 {integration.group_name}</h4>
+                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                      {integration.category_main && <span className="institution-badge" style={{ fontSize: '0.8em', background: '#e0e7ff', color: '#3730a3', padding: '2px 6px', borderRadius: '4px' }}>{integration.category_main}</span>}
+                      {integration.category_mid && <span className="institution-badge" style={{ fontSize: '0.8em', background: '#dbeafe', color: '#1e40af', padding: '2px 6px', borderRadius: '4px' }}>{integration.category_mid}</span>}
+                      {integration.category_sub && <span className="institution-badge" style={{ fontSize: '0.8em', background: '#f3e8ff', color: '#6b21a8', padding: '2px 6px', borderRadius: '4px' }}>{integration.category_sub}</span>}
+                    </div>
                     <p>{integration.analysis_count}개 편 통합</p>
                     <p className="created-date">
                       {new Date(integration.created_at).toLocaleString('ko-KR')}
@@ -328,7 +409,14 @@ export function SavedAnalysisList() {
                     
                     <div className="analysis-info">
                       <h4>{getOriginalFileName(analysis.file_id)}</h4>
-                      <p>{analysis.edition ? `${analysis.edition}편` : ''}</p>
+                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', margin: '4px 0' }}>
+                        {analysis.category_main && <span style={{ background: '#e0e7ff', color: '#3730a3', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8em' }}>{analysis.category_main}</span>}
+                        {analysis.category_mid && <span style={{ background: '#dbeafe', color: '#1e40af', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8em' }}>{analysis.category_mid}</span>}
+                        {analysis.category_sub && <span style={{ background: '#f3e8ff', color: '#6b21a8', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8em' }}>{analysis.category_sub}</span>}
+                      </div>
+                      <p>
+                        {analysis.edition ? `${analysis.edition}편` : ''}
+                      </p>
                     </div>
 
                     <div className="analysis-actions">

@@ -23,6 +23,9 @@ function AppContent() {
   const [multipleChapterNames, setMultipleChapterNames] = useState([])
   const [isMultipleMode, setIsMultipleMode] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [categoryMain, setCategoryMain] = useState('은행') // 대분류
+  const [categoryMid, setCategoryMid] = useState('') // 중분류
+  const [categorySub, setCategorySub] = useState('') // 소분류
   const [result, setResult] = useState(null)
   const [analysis, setAnalysis] = useState(null)
   const [mermaidCode, setMermaidCode] = useState('')
@@ -76,7 +79,7 @@ function AppContent() {
     setLoading(true)
     setAnalysis(null)
     try {
-      const response = await axiosInstance.post(`/api/regulations/analyze?file_id=${encodeURIComponent(fileId)}`)
+      const response = await axiosInstance.post(`/api/regulations/analyze?file_id=${encodeURIComponent(fileId)}&category_main=${encodeURIComponent(categoryMain)}&category_mid=${encodeURIComponent(categoryMid)}&category_sub=${encodeURIComponent(categorySub)}`)
       const data = response.data
       if (data.status === "success") {
         setAnalysis(data.analysis)
@@ -171,7 +174,7 @@ function AppContent() {
           // Step 2: 파일 분석
           if (uploadData.filename) {
             const analyzeResponse = await axiosInstance.post(
-              `/api/regulations/analyze?file_id=${encodeURIComponent(uploadData.filename)}&edition=${group.edition}&edition_name=${encodeURIComponent(group.editionName)}`
+              `/api/regulations/analyze?file_id=${encodeURIComponent(uploadData.filename)}&edition=${group.edition}&edition_name=${encodeURIComponent(group.editionName)}&category_main=${encodeURIComponent(categoryMain)}&category_mid=${encodeURIComponent(categoryMid)}&category_sub=${encodeURIComponent(categorySub)}`
             )
             
             const analyzeData = analyzeResponse.data
@@ -267,6 +270,39 @@ function AppContent() {
         <PermissionGuard permission="upload">
           <section className="upload-section">
             <h2>규정 파일 업로드</h2>
+            <div className="category-selects" style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+              <div className="category-group">
+                <label style={{ display: 'block', marginBottom: '5px' }}>대분류 (대상기관)</label>
+                <select value={categoryMain} onChange={(e) => setCategoryMain(e.target.value)} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', width: '100%' }}>
+                  <option value="은행">은행</option>
+                  <option value="저축은행">저축은행</option>
+                  <option value="보험">보험</option>
+                  <option value="증권">증권</option>
+                  <option value="공금융">공금융</option>
+                  <option value="기타">기타</option>
+                </select>
+              </div>
+              <div className="category-group">
+                <label style={{ display: 'block', marginBottom: '5px' }}>중분류 (기관명 등)</label>
+                <input 
+                  type="text" 
+                  value={categoryMid} 
+                  onChange={(e) => setCategoryMid(e.target.value)} 
+                  placeholder="예: 신한은행, 하나은행"
+                  style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', width: '100%' }}
+                />
+              </div>
+              <div className="category-group">
+                <label style={{ display: 'block', marginBottom: '5px' }}>소분류 (업무 등)</label>
+                <input 
+                  type="text" 
+                  value={categorySub} 
+                  onChange={(e) => setCategorySub(e.target.value)} 
+                  placeholder="예: 여신, 수신, 투자"
+                  style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', width: '100%' }}
+                />
+              </div>
+            </div>
             <div className="upload-box">
               <input 
                 type="file" 

@@ -99,6 +99,9 @@ async def analyze_regulation_file(
     file_id: str,
     edition: int = Query(None),
     edition_name: str = Query(None),
+    category_main: str = Query("기타"),
+    category_mid: str = Query(""),
+    category_sub: str = Query(""),
     db: Session = Depends(get_db)
 ):
     """
@@ -162,7 +165,10 @@ async def analyze_regulation_file(
                 system_interfaces=analysis_dict.get("system_interfaces", []),
                 swim_lanes_count=len(analysis_dict.get("swim_lanes", [])),
                 raci_count=len(analysis_dict.get("raci", [])),
-                decisions_count=len(analysis_dict.get("decisions", []))
+                decisions_count=len(analysis_dict.get("decisions", [])),
+                category_main=category_main,
+                category_mid=category_mid,
+                category_sub=category_sub
             ))
             db.commit()
             saved = True
@@ -177,7 +183,10 @@ async def analyze_regulation_file(
             "version": version.version,
             "saved": saved,
             "edition": edition,  # 응답에 포함
-            "edition_name": file_category
+            "edition_name": file_category,
+            "category_main": category_main,
+            "category_mid": category_mid,
+            "category_sub": category_sub
         }
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
@@ -215,6 +224,9 @@ def get_analysis_results(db: Session = Depends(get_db)):
                     "file_name": r.RegulationFile.file_name if r.RegulationFile else r.AnalysisResult.file_id,
                     "edition": r.AnalysisResult.edition,
                     "process_name": r.AnalysisResult.process_name,
+                    "category_main": r.AnalysisResult.category_main,
+                    "category_mid": r.AnalysisResult.category_mid,
+                    "category_sub": r.AnalysisResult.category_sub,
                     "swim_lanes_count": r.AnalysisResult.swim_lanes_count,
                     "raci_count": r.AnalysisResult.raci_count,
                     "decisions_count": r.AnalysisResult.decisions_count,

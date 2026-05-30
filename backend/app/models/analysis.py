@@ -42,6 +42,10 @@ class AnalysisResult(Base):
     swim_lanes_count = Column(Integer, default=0)
     raci_count = Column(Integer, default=0)
     decisions_count = Column(Integer, default=0)
+    institution = Column(String, default="기타") # deprecated
+    category_main = Column(String, default="기타")
+    category_mid = Column(String, default="")
+    category_sub = Column(String, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -51,6 +55,10 @@ class AnalysisResult(Base):
             'edition': self.edition,
             'process_name': self.process_name,
             'description': self.description,
+            'institution': self.institution,
+            'category_main': self.category_main,
+            'category_mid': self.category_mid,
+            'category_sub': self.category_sub,
             'swim_lanes_count': self.swim_lanes_count,
             'raci_count': self.raci_count,
             'decisions_count': self.decisions_count,
@@ -80,6 +88,10 @@ class AnalysisGroup(Base):
     description = Column(Text)
     selected_analysis_ids = Column(JSON)
     integrated_data = Column(JSON)
+    institution = Column(String, default="기타") # deprecated
+    category_main = Column(String, default="기타")
+    category_mid = Column(String, default="")
+    category_sub = Column(String, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -88,6 +100,10 @@ class AnalysisGroup(Base):
             'id': self.id,
             'group_name': self.group_name,
             'description': self.description,
+            'institution': self.institution,
+            'category_main': self.category_main,
+            'category_mid': self.category_mid,
+            'category_sub': self.category_sub,
             'analysis_count': len(self.selected_analysis_ids) if self.selected_analysis_ids else 0,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()

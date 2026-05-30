@@ -3,6 +3,9 @@ import { useState } from 'react'
 export function IntegrationPanel({ analysisIds, analyses, onClose, onComplete }) {
   const [integrationName, setIntegrationName] = useState('')
   const [description, setDescription] = useState('')
+  const [categoryMain, setCategoryMain] = useState(analyses.length > 0 ? (analyses[0].category_main || '은행') : '은행')
+  const [categoryMid, setCategoryMid] = useState(analyses.length > 0 ? (analyses[0].category_mid || '') : '')
+  const [categorySub, setCategorySub] = useState(analyses.length > 0 ? (analyses[0].category_sub || '') : '')
   const [isIntegrating, setIsIntegrating] = useState(false)
   const [integrationResult, setIntegrationResult] = useState(null)
   const [error, setError] = useState(null)
@@ -27,6 +30,9 @@ export function IntegrationPanel({ analysisIds, analyses, onClose, onComplete })
           body: JSON.stringify({
             integrated_name: integrationName,
             description: description,
+            category_main: categoryMain,
+            category_mid: categoryMid,
+            category_sub: categorySub,
             selected_analysis_ids: analysisIds,
             analyses: analyses.map(a => ({
               id: a.id,
@@ -130,6 +136,47 @@ export function IntegrationPanel({ analysisIds, analyses, onClose, onComplete })
                 onChange={(e) => setIntegrationName(e.target.value)}
                 placeholder="예: 여신 신청~실행 통합프로세스"
                 disabled={isIntegrating}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>대분류 (대상기관) *</label>
+              <select
+                value={categoryMain}
+                onChange={(e) => setCategoryMain(e.target.value)}
+                disabled={isIntegrating}
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+              >
+                <option value="은행">은행</option>
+                <option value="저축은행">저축은행</option>
+                <option value="보험">보험</option>
+                <option value="증권">증권</option>
+                <option value="공금융">공금융</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>중분류 (기관명 등)</label>
+              <input
+                type="text"
+                value={categoryMid}
+                onChange={(e) => setCategoryMid(e.target.value)}
+                disabled={isIntegrating}
+                placeholder="예: 신한은행, 하나은행"
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>소분류 (업무 등)</label>
+              <input
+                type="text"
+                value={categorySub}
+                onChange={(e) => setCategorySub(e.target.value)}
+                disabled={isIntegrating}
+                placeholder="예: 여신, 수신, 투자"
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
               />
             </div>
 

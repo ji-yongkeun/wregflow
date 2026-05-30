@@ -28,6 +28,9 @@ async def create_integration(
         integrated_name = payload.get("integrated_name")
         description = payload.get("description", "")
         selected_analysis_ids = payload.get("selected_analysis_ids", [])
+        category_main = payload.get("category_main", "기타")
+        category_mid = payload.get("category_mid", "")
+        category_sub = payload.get("category_sub", "")
         
         if not integrated_name:
             raise HTTPException(status_code=400, detail="통합 분석 이름이 필요합니다")
@@ -63,7 +66,10 @@ async def create_integration(
             group_name=integrated_name,
             description=description,
             selected_analysis_ids=selected_analysis_ids,
-            integrated_data=integrated_result
+            integrated_data=integrated_result,
+            category_main=category_main,
+            category_mid=category_mid,
+            category_sub=category_sub
         )
         db.add(analysis_group)
         db.commit()
@@ -74,6 +80,9 @@ async def create_integration(
                 "id": analysis_group.id,
                 "group_name": analysis_group.group_name,
                 "description": analysis_group.description,
+                "category_main": analysis_group.category_main,
+                "category_mid": analysis_group.category_mid,
+                "category_sub": analysis_group.category_sub,
                 "analysis_count": len(selected_analysis_ids),
                 "created_at": analysis_group.created_at.isoformat(),
                 "integrated_data": integrated_result
@@ -122,6 +131,9 @@ async def get_integration_detail(integration_id: str, db: Session = Depends(get_
                 "id": integration.id,
                 "group_name": integration.group_name,
                 "description": integration.description,
+                "category_main": integration.category_main,
+                "category_mid": integration.category_mid,
+                "category_sub": integration.category_sub,
                 "analysis_count": len(integration.selected_analysis_ids),
                 "created_at": integration.created_at.isoformat(),
                 "integrated_data": integration.integrated_data

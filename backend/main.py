@@ -70,6 +70,27 @@ async def startup_event():
             db.rollback()
             print(f"⚠️ system_interfaces 컬럼 추가 중 오류 (무시 가능): {db_err}")
 
+        # institution 컬럼 존재 여부 확인 및 추가
+        for table in ["analysis_results", "analysis_groups"]:
+            try:
+                # SQLite doesn't strictly support IF NOT EXISTS in ALTER TABLE ADD COLUMN in older versions,
+                # but we try/except anyway.
+                db.execute(text(f"ALTER TABLE {table} ADD COLUMN institution VARCHAR DEFAULT '기타';"))
+                db.commit()
+                print(f"✅ {table} 테이블에 institution 컬럼 추가 완료")
+            except Exception as db_err:
+                db.rollback()
+            
+            # Add 3-tier categorization columns
+            for col in ["category_main", "category_mid", "category_sub"]:
+                try:
+                    default_val = "'기타'" if col == "category_main" else "''"
+                    db.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} VARCHAR DEFAULT {default_val};"))
+                    db.commit()
+                    print(f"✅ {table} 테이블에 {col} 컬럼 추가 완료")
+                except Exception as db_err:
+                    db.rollback()
+
         # edition이 NULL인 분석 결과 찾기
         null_editions = db.query(AnalysisResult).filter(
             AnalysisResult.edition == None

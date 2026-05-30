@@ -28,8 +28,12 @@ cd /var/www/wregflow/backend
 # 로그 파일 초기화
 > backend.log
 
-# 가상환경 활성화 및 실행
+# 가상환경 활성화 및 의존성 설치
 source venv/bin/activate
+echo "Installing backend dependencies..."
+pip install -r requirements.txt
+
+# 실행
 nohup python main.py > backend.log 2>&1 &
 BACKEND_PID=$!
 
@@ -59,6 +63,10 @@ cd /var/www/wregflow/frontend
 
 # 캐시 정리
 rm -rf node_modules/.vite
+
+# 의존성 설치
+echo "Installing frontend dependencies..."
+npm install
 
 # 로그 파일 초기화
 > frontend.log
