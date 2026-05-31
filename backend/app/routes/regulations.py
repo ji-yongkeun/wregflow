@@ -7,7 +7,7 @@ from app.db.database import get_db
 from app.services.text_extractor import extract_text
 from app.services.claude_analyzer import analyze_regulation
 from app.services.version_service import save_version
-from app.models.analysis import RegulationFile, AnalysisResult
+from app.models.analysis import RegulationFile, AnalysisResult, AnalysisGroup
 
 router = APIRouter(prefix="/api/regulations", tags=["regulations"])
 
@@ -199,16 +199,24 @@ def get_categories(db: Session = Depends(get_db)):
     저장된 고유 카테고리(대, 중, 소) 목록 반환
     """
     try:
-        main_categories = db.query(AnalysisResult.category_main).filter(AnalysisResult.category_main != "").distinct().all()
-        mid_categories = db.query(AnalysisResult.category_mid).filter(AnalysisResult.category_mid != "").distinct().all()
-        sub_categories = db.query(AnalysisResult.category_sub).filter(AnalysisResult.category_sub != "").distinct().all()
+        main_categories_res = db.query(AnalysisResult.category_main).filter(AnalysisResult.category_main != "").distinct().all()
+        mid_categories_res = db.query(AnalysisResult.category_mid).filter(AnalysisResult.category_mid != "").distinct().all()
+        sub_categories_res = db.query(AnalysisResult.category_sub).filter(AnalysisResult.category_sub != "").distinct().all()
+        
+        main_categories_grp = db.query(AnalysisGroup.category_main).filter(AnalysisGroup.category_main != "").distinct().all()
+        mid_categories_grp = db.query(AnalysisGroup.category_mid).filter(AnalysisGroup.category_mid != "").distinct().all()
+        sub_categories_grp = db.query(AnalysisGroup.category_sub).filter(AnalysisGroup.category_sub != "").distinct().all()
+        
+        main_set = set(c[0] for c in main_categories_res if c[0]) | set(c[0] for c in main_categories_grp if c[0])
+        mid_set = set(c[0] for c in mid_categories_res if c[0]) | set(c[0] for c in mid_categories_grp if c[0])
+        sub_set = set(c[0] for c in sub_categories_res if c[0]) | set(c[0] for c in sub_categories_grp if c[0])
         
         return {
             "status": "success",
             "categories": {
-                "main": [c[0] for c in main_categories if c[0]],
-                "mid": [c[0] for c in mid_categories if c[0]],
-                "sub": [c[0] for c in sub_categories if c[0]]
+                "main": list(main_set),
+                "mid": list(mid_set),
+                "sub": list(sub_set)
             }
         }
     except Exception as e:

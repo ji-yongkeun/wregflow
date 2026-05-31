@@ -46,6 +46,8 @@ function AppContent() {
   const [categories, setCategories] = useState({ main: ['은행', '저축은행', '보험', '증권', '공금융', '기타'], mid: [], sub: [] })
 
   useEffect(() => {
+    if (showSavedAnalyses) return; // 저장된 분석 탭일 때는 호출 안함
+
     const fetchCategories = async () => {
       try {
         const response = await axiosInstance.get('/api/regulations/categories')
@@ -61,7 +63,7 @@ function AppContent() {
       }
     }
     fetchCategories()
-  }, [])
+  }, [showSavedAnalyses])
   const [result, setResult] = useState(null)
   const [analysis, setAnalysis] = useState(null)
   const [mermaidCode, setMermaidCode] = useState('')
