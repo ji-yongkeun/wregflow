@@ -193,6 +193,27 @@ async def analyze_regulation_file(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.get("/categories")
+def get_categories(db: Session = Depends(get_db)):
+    """
+    저장된 고유 카테고리(대, 중, 소) 목록 반환
+    """
+    try:
+        main_categories = db.query(AnalysisResult.category_main).filter(AnalysisResult.category_main != "").distinct().all()
+        mid_categories = db.query(AnalysisResult.category_mid).filter(AnalysisResult.category_mid != "").distinct().all()
+        sub_categories = db.query(AnalysisResult.category_sub).filter(AnalysisResult.category_sub != "").distinct().all()
+        
+        return {
+            "status": "success",
+            "categories": {
+                "main": [c[0] for c in main_categories if c[0]],
+                "mid": [c[0] for c in mid_categories if c[0]],
+                "sub": [c[0] for c in sub_categories if c[0]]
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"카테고리 목록 조회 중 오류가 발생했습니다: {str(e)}")
+
 @router.get("/list")
 def list_files():
     try:

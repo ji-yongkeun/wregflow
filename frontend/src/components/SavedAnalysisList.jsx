@@ -74,6 +74,17 @@ export function SavedAnalysisList() {
     setFilteredIntegrations(filtered)
   }, [integrations, categoryMainFilter, categoryMidFilter, categorySubFilter])
 
+  const handleMainFilterChange = (e) => {
+    setCategoryMainFilter(e.target.value || null)
+    setCategoryMidFilter(null)
+    setCategorySubFilter(null)
+  }
+
+  const handleMidFilterChange = (e) => {
+    setCategoryMidFilter(e.target.value || null)
+    setCategorySubFilter(null)
+  }
+
   const fetchAnalyses = async () => {
     setLoading(true)
     try {
@@ -247,7 +258,7 @@ export function SavedAnalysisList() {
           <label style={{ marginRight: '5px' }}>대분류: </label>
           <select 
             value={categoryMainFilter || ''} 
-            onChange={(e) => setCategoryMainFilter(e.target.value || null)}
+            onChange={handleMainFilterChange}
             style={{ padding: '5px', borderRadius: '4px' }}
           >
             <option value="">전체</option>
@@ -263,7 +274,7 @@ export function SavedAnalysisList() {
           <label style={{ marginRight: '5px' }}>중분류: </label>
           <select 
             value={categoryMidFilter || ''} 
-            onChange={(e) => setCategoryMidFilter(e.target.value || null)}
+            onChange={handleMidFilterChange}
             style={{ padding: '5px', borderRadius: '4px' }}
           >
             <option value="">전체</option>
