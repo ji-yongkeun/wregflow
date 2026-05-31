@@ -77,14 +77,14 @@ function LaneGroupNode({ data }) {
   )
 }
 
-// ── Task Type Icon Mapper ─────────────────────────────────────────────────────
-const getTaskTypeIcon = (type) => {
+// ── Task Type Text Mapper ─────────────────────────────────────────────────────
+const getTaskTypeText = (type) => {
   switch (type) {
-    case 'system': return <DesktopOutlined />
-    case 'approval': return <CheckCircleOutlined />
-    case 'general': return <SettingOutlined />
+    case 'system': return '시스템'
+    case 'approval': return '승인/결재'
+    case 'general': return '일반작업'
     case 'document':
-    default: return <FileTextOutlined />
+    default: return '문서작업'
   }
 }
 
@@ -115,20 +115,34 @@ function ProcessNode({ data, selected }) {
       <Handle type="target" position={Position.Top} style={{ background: '#3b82f6', border: 'none' }} />
       <div style={{
         width: '32px', background: '#3b82f6', color: '#ffffff',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '8px',
         fontWeight: 'bold', fontSize: '14px', borderTopLeftRadius: '6px', borderBottomLeftRadius: '6px'
       }}>
         {data.order}
       </div>
-      <div style={{ flex: 1, padding: '8px 8px 6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <div style={{ flex: 1, padding: '8px 8px 6px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
         <div style={{
           color: '#1e293b', fontSize: '11px', fontWeight: '600', lineHeight: '1.3',
-          wordBreak: 'keep-all', overflowWrap: 'break-word', marginBottom: '4px'
+          wordBreak: 'keep-all', overflowWrap: 'break-word', marginBottom: '8px'
         }}>
           {data.action}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', color: '#94a3b8', fontSize: '12px' }}>
-          {getTaskTypeIcon(data.task_type)}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 'auto' }}>
+          {data.regulation_ref && data.regulation_ref !== '알 수 없음' ? (
+            <span style={{ fontSize: '9px', color: '#3b82f6', fontWeight: 'bold', maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={data.regulation_ref}>
+              {data.regulation_ref}
+            </span>
+          ) : (data.related_editions && data.related_editions.length > 0) ? (
+            <span style={{ fontSize: '9px', color: '#3b82f6', fontWeight: 'bold', maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={data.related_editions.map(e => `${e}편`).join(', ')}>
+              {data.related_editions.map(e => `${e}편`).join(', ')}
+            </span>
+          ) : <span />}
+          <span style={{ 
+            background: '#f1f5f9', color: '#64748b', fontSize: '10px', 
+            padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' 
+          }}>
+            {getTaskTypeText(data.task_type)}
+          </span>
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} style={{ background: '#3b82f6', border: 'none' }} />
@@ -154,19 +168,28 @@ function DecisionNode({ data, selected }) {
         background: '#fffbeb',
         border: `2px solid ${selected ? '#f59e0b' : '#fcd34d'}`,
         borderRadius: '8px', padding: '6px 8px',
-        display: 'flex', flexDirection: 'row', alignItems: 'center',
+        display: 'flex', flexDirection: 'row', alignItems: 'flex-start',
         boxShadow: selected ? '0 4px 12px rgba(245, 158, 11, 0.3)' : '0 2px 5px rgba(0,0,0,0.05)',
         cursor: 'pointer', boxSizing: 'border-box'
       }}>
         <div style={{
           width: '20px', height: '20px', background: '#f59e0b',
           transform: 'rotate(45deg)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          marginRight: '8px', marginLeft: '2px', flexShrink: 0
+          marginRight: '8px', marginLeft: '2px', marginTop: '2px', flexShrink: 0
         }}>
           <span style={{ color: '#fff', transform: 'rotate(-45deg)', fontSize: '10px', fontWeight: 'bold' }}>?</span>
         </div>
-        <div style={{ color: '#92400e', fontSize: '11px', fontWeight: '600', lineHeight: '1.3', wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
-          {data.action}
+        <div style={{ display: 'flex', flexDirection: 'column', color: '#92400e', fontSize: '11px', fontWeight: '600', lineHeight: '1.3', wordBreak: 'keep-all', overflowWrap: 'break-word', marginTop: '4px' }}>
+          <span>{data.action}</span>
+          {data.regulation_ref && data.regulation_ref !== '알 수 없음' ? (
+            <span style={{ fontSize: '9px', color: '#b45309', marginTop: '4px' }}>
+              {data.regulation_ref}
+            </span>
+          ) : (data.related_editions && data.related_editions.length > 0) && (
+            <span style={{ fontSize: '9px', color: '#b45309', marginTop: '4px' }}>
+              {data.related_editions.map(e => `${e}편`).join(', ')}
+            </span>
+          )}
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} id="yes" style={{ background: '#10b981', border: 'none', left: '30%' }} />
@@ -346,7 +369,9 @@ const INTERNAL_KEYS = new Set([
 ])
 
 function renderFieldValue(value) {
-  if (value === null || value === undefined) return null
+  if (value === null || value === undefined || value === 'null' || value === 'None' || value === '') return '시스템/수기'
+  if (typeof value === 'string' && value.trim().toLowerCase() === 'null') return '시스템/수기'
+  if (value === '시스템/수기') return '시스템/수기'
 
   // 배열
   if (Array.isArray(value)) {
@@ -686,8 +711,30 @@ function StepDetailModal({ step, onClose }) {
   )
 }
 
+// ── Recursively replace null strings ───────────────────────────────────────────
+const replaceNullsDeep = (obj) => {
+  if (obj === 'null' || obj === null) {
+    return '시스템/수기'
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(replaceNullsDeep)
+  }
+  if (obj !== null && typeof obj === 'object') {
+    const newObj = {}
+    for (const key in obj) {
+      newObj[key] = replaceNullsDeep(obj[key])
+    }
+    return newObj
+  }
+  return obj
+}
+
 // ── Inner diagram (needs ReactFlowProvider context) ───────────────────────────
-function SwimlaneDiagramInner({ swimData, raciData, decisionsData }) {
+function SwimlaneDiagramInner({ swimData: rawSwimData, raciData: rawRaciData, decisionsData: rawDecisionsData }) {
+  const swimData = useMemo(() => replaceNullsDeep(rawSwimData) || [], [rawSwimData])
+  const raciData = useMemo(() => replaceNullsDeep(rawRaciData) || [], [rawRaciData])
+  const decisionsData = useMemo(() => replaceNullsDeep(rawDecisionsData) || [], [rawDecisionsData])
+
   const [selectedStep, setSelectedStep] = useState(null)
 
   const { nodes: initNodes, edges: initEdges, totalHeight } = useMemo(
@@ -729,7 +776,7 @@ function SwimlaneDiagramInner({ swimData, raciData, decisionsData }) {
           nodeTypes={nodeTypes}
           onNodeClick={onNodeClick}
           fitView
-          fitViewOptions={{ padding: 0.06, maxZoom: 1.1 }}
+          fitViewOptions={{ padding: 0.05, maxZoom: 1.5 }}
           panOnDrag
           zoomOnScroll
           minZoom={0.25}

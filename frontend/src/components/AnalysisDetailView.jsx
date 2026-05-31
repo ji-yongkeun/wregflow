@@ -1,14 +1,14 @@
 import { useState, useRef } from 'react'
 import SwimlaneDiagram from './SwimlaneDiagram'
 import DecisionTable from './DecisionTable'
-import { downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadSingleAnalysisExcel, downloadSwimlanePPT, downloadRaciPPT, downloadDecisionsPPT, downloadElementAsPPT } from '../utils/downloadUtils'
+import { downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadSingleAnalysisExcel, downloadSwimlanePPT, downloadRaciPPT, downloadDecisionsPPT, downloadSwimlaneA3PPT, downloadElementAsPdfA3 } from '../utils/downloadUtils'
 import ExcelDropdownButton from './ExcelDropdownButton'
 
-// 알려진 RACI 컬럼 순서/레이블
-const RACI_COL_ORDER  = ['task','responsible','accountable','consulted','informed']
+const RACI_COL_ORDER  = ['task','responsible','accountable','consulted','informed','regulation_ref']
 const RACI_COL_LABELS = {
   task:'작업', responsible:'R (수행)', accountable:'A (책임)',
   consulted:'C (합의)', informed:'I (보고)',
+  regulation_ref: '관련 규정',
 }
 const RACI_HEADER_COLORS = {
   task: '#93c5fd', responsible: '#a5b4fc', accountable: '#c4b5fd',
@@ -96,27 +96,33 @@ export function AnalysisDetailView({ analysis, onClose }) {
     return null
   }
 
-  const handleDownloadImagePPT = async () => {
-    const date = new Date().toISOString().slice(0, 10)
-    const tabTitles = { swimlane: 'Swim Lane 다이어그램', raci: 'RACI 매트릭스', decisions: '의사결정 포인트' }
-    await downloadElementAsPPT(
-      vizDiagramRef.current,
-      `${analysis.process_name || ''} — ${tabTitles[selectedTab] || ''}`.trim(),
-      `${selectedTab}_image_${date}.pptx`
-    )
-  }
-
   const handleDownloadPPT = async () => {
     const date = new Date().toISOString().slice(0, 10)
     const parse = v => typeof v === 'string' ? JSON.parse(v) : v
 
     if (selectedTab === 'swimlane') {
-      await downloadSwimlanePPT(parse(analysis.swim_lanes), analysis.process_name, `swimlane_${date}.pptx`)
+      await downloadSwimlanePPT(parse(analysis.swim_lanes), analysis.process_name, `swimlane_A3가로_${date}.pptx`)
     } else if (selectedTab === 'raci') {
       await downloadRaciPPT(parse(analysis.raci), analysis.process_name, `raci_${date}.pptx`)
     } else if (selectedTab === 'decisions') {
       await downloadDecisionsPPT(getDecisionsData(), analysis.process_name, `decisions_${date}.pptx`)
     }
+  }
+
+  const handleDownloadA3PPT = async () => {
+    const date = new Date().toISOString().slice(0, 10)
+    const parse = v => typeof v === 'string' ? JSON.parse(v) : v
+    await downloadSwimlaneA3PPT(parse(analysis.swim_lanes), analysis.process_name, `swimlane_A3세로_${date}.pptx`)
+  }
+
+  const handleDownloadPdfA3 = async () => {
+    const date = new Date().toISOString().slice(0, 10)
+    const tabTitles = { swimlane: 'Swim Lane 다이어그램', raci: 'RACI 매트릭스', decisions: '의사결정 포인트' }
+    await downloadElementAsPdfA3(
+      vizDiagramRef.current,
+      `${analysis.process_name || ''} — ${tabTitles[selectedTab] || ''}`.trim(),
+      `${selectedTab}_A3세로_${date}.pdf`
+    )
   }
 
   const copyToClipboard = (data) => {
@@ -341,20 +347,29 @@ export function AnalysisDetailView({ analysis, onClose }) {
                   <h3>{currentTab.title}</h3>
                   <div className="download-buttons">
                     {selectedTab === 'swimlane' && (
-                      <button
-                        className="btn-download-ppt-image"
-                        onClick={handleDownloadImagePPT}
-                        title="화면 이미지 그대로 PPT로 저장"
-                      >
-                        🖼️ 이미지(PPT)저장
-                      </button>
+                      <>
+                        <button
+                          className="btn-download-ppt-image"
+                          onClick={handleDownloadPdfA3}
+                          title="화면 이미지를 PDF A3 세로 형식으로 저장"
+                        >
+                          📄 PDF A3세로
+                        </button>
+                        <button
+                          className="btn-download-ppt"
+                          onClick={handleDownloadA3PPT}
+                          title="A3 세로 형식 스윔레인 PPT (컬럼=역할, 행=단계, 페이지 넘김 자동)"
+                        >
+                          📐 A3세로 PPT
+                        </button>
+                      </>
                     )}
                     <button
                       className="btn-download-ppt"
                       onClick={handleDownloadPPT}
-                      title="현재 탭을 PowerPoint 파일로 저장"
+                      title={selectedTab === 'swimlane' ? 'A3 가로 형식 스윔레인 PPT (행=역할, 열=단계, 페이지 넘김 자동)' : '현재 탭을 PowerPoint 파일로 저장'}
                     >
-                      🖼️ PPT 저장
+                      {selectedTab === 'swimlane' ? '📐 A3가로 PPT' : '🖼️ PPT 저장'}
                     </button>
                     {(selectedTab === 'raci' || selectedTab === 'decisions') && (
                       <button

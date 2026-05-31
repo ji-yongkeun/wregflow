@@ -6,15 +6,16 @@ import {
   downloadProcessExcel,
   downloadSwimlanePPT, downloadRaciPPT, downloadDecisionsPPT,
   downloadSwimlaneImage, downloadRaciImage, downloadDecisionsImage,
-  downloadElementAsPPT
+  downloadElementAsPdfA3
 } from '../utils/downloadUtils'
 import ExcelDropdownButton from './ExcelDropdownButton'
 
 // ── 동적 RACI 테이블 (분석 상세보기와 동일) ──────────────────────────────────
-const RACI_COL_ORDER  = ['task','responsible','accountable','consulted','informed']
+const RACI_COL_ORDER  = ['task','responsible','accountable','consulted','informed','regulation_ref']
 const RACI_COL_LABELS = {
   task:'작업', responsible:'R (수행)', accountable:'A (책임)',
   consulted:'C (합의)', informed:'I (보고)',
+  regulation_ref: '관련 규정',
 }
 const RACI_HEADER_COLORS = {
   task:'#93c5fd', responsible:'#a5b4fc', accountable:'#c4b5fd',
@@ -71,14 +72,15 @@ function buildSwimlaneData(result) {
   steps.forEach((step, idx) => {
     const dept = step.responsible_department || '기타'
     if (!lanesMap[dept]) lanesMap[dept] = []
-    const isDecision = ['여부','검토','심사','결정','판단'].some(w => (step.step_name || '').includes(w))
     lanesMap[dept].push({
       order: step.step_number || (idx + 1),
       action: step.step_name || '',
-      decision: isDecision,
+      decision: DECISION_KEYWORDS.some(kw => (step.step_name||'').includes(kw)),
+      task_type: 'general',
       description: step.description || '',
       outputs: step.outputs || [],
       related_editions: step.related_editions || [],
+      regulation_ref: step.regulation_ref || '',
     })
   })
   return Object.keys(lanesMap).map(role => ({
@@ -167,15 +169,15 @@ export function IntegrationResultView({ result, onClose }) {
 
   const handleDownloadImagePPT = async () => {
     const tabTitles = { swimlane: 'Swim Lane 다이어그램', raci: 'RACI 매트릭스', decisions: '의사결정 포인트' }
-    await downloadElementAsPPT(
+    await downloadElementAsPdfA3(
       vizDiagramRef.current,
       `${processName} — ${tabTitles[selectedTab] || ''}`.trim(),
-      `integrated_${selectedTab}_image_${date()}.pptx`
+      `integrated_${selectedTab}_A3세로_${date()}.pdf`
     )
   }
 
   const handleDownloadPPT = async () => {
-    if (selectedTab === 'swimlane')       await downloadSwimlanePPT(swimData,      processName, `integrated_swimlane_${date()}.pptx`)
+    if (selectedTab === 'swimlane')       await downloadSwimlanePPT(swimData,      processName, `integrated_swimlane_A3가로_${date()}.pptx`)
     else if (selectedTab === 'raci')      await downloadRaciPPT(raciData,          processName, `integrated_raci_${date()}.pptx`)
     else if (selectedTab === 'decisions') await downloadDecisionsPPT(decisionsData, processName, `integrated_decisions_${date()}.pptx`)
   }
@@ -265,12 +267,12 @@ export function IntegrationResultView({ result, onClose }) {
                   <h3>{currentTab.title}</h3>
                   <div className="download-buttons">
                     {selectedTab === 'swimlane' && (
-                      <button className="btn-download-ppt-image" onClick={handleDownloadImagePPT} title="화면 이미지 그대로 PPT로 저장">
-                        🖼️ 이미지(PPT)저장
+                      <button className="btn-download-ppt-image" onClick={handleDownloadImagePPT} title="화면 이미지를 PDF A3 세로 형식으로 저장">
+                        📄 PDF A3세로
                       </button>
                     )}
-                    <button className="btn-download-ppt" onClick={handleDownloadPPT} title="PPT 저장">
-                      🖼️ PPT 저장
+                    <button className="btn-download-ppt" onClick={handleDownloadPPT} title={selectedTab === 'swimlane' ? 'A3 가로 형식 스윔레인 PPT' : 'PPT 저장'}>
+                      {selectedTab === 'swimlane' ? '📐 A3가로 PPT' : '🖼️ PPT 저장'}
                     </button>
                     {(selectedTab === 'raci' || selectedTab === 'decisions') && (
                       <button className="btn-download-csv" onClick={handleDownloadCsv} title="CSV 저장">

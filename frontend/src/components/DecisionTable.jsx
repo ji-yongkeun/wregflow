@@ -1,9 +1,10 @@
-const DECISION_COL_ORDER = ['id', 'question', 'yes_outcome', 'no_outcome']
+const DECISION_COL_ORDER = ['id', 'question', 'yes_outcome', 'no_outcome', 'regulation_ref']
 const DECISION_COL_LABELS = {
   id:          'ID',
   question:    '질문',
   yes_outcome: '✓ YES 결과',
   no_outcome:  '✗ NO 결과',
+  regulation_ref: '관련 규정',
 }
 const DECISION_COL_STYLES = {
   yes_outcome: { borderLeft: '2px solid rgba(16,185,129,0.35)', bg: 'rgba(16,185,129,0.1)', color: '#10b981' },

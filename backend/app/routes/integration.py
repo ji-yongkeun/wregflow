@@ -61,6 +61,19 @@ async def create_integration(
         # Claude에 통합 분석 요청
         integrated_result = await analyze_integration(analyses_data, integrated_name)
         
+        def replace_null_system_used(obj):
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    if k == 'system_used' and v in [None, 'null', 'None', '', '시스템&수기']:
+                        obj[k] = '시스템/수기'
+                    elif isinstance(v, (dict, list)):
+                        replace_null_system_used(v)
+            elif isinstance(obj, list):
+                for item in obj:
+                    replace_null_system_used(item)
+                    
+        replace_null_system_used(integrated_result)
+        
         # 통합 분석 결과 저장
         analysis_group = AnalysisGroup(
             group_name=integrated_name,

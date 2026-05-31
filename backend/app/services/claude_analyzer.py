@@ -41,6 +41,7 @@ class StepSchema(BaseModel):
     decision: bool
     task_type: str
     system_used: str
+    regulation_ref: str
     next_steps: List[int]
 
 class SwimLaneSchema(BaseModel):
@@ -52,6 +53,7 @@ class DecisionSchema(BaseModel):
     question: str
     yes_outcome: str
     no_outcome: str
+    regulation_ref: str
 
 class RACISchema(BaseModel):
     task: str
@@ -59,6 +61,7 @@ class RACISchema(BaseModel):
     accountable: str
     consulted: str
     informed: str
+    regulation_ref: str
 
 class SystemInterfaceSchema(BaseModel):
     system_a: str
@@ -84,9 +87,10 @@ SYSTEM_PROMPT = (
     "5. 시스템 인터페이스 (연계 또는 사용되는 시스템 간 관계)\n\n"
     "주의사항 (필수 사항, 반드시 지킬 것):\n"
     "1. 각 단계(step)마다 'task_type' 필드를 반드시 포함하세요 (document, system, approval, general 중 택 1).\n"
-    "2. 각 단계마다 'system_used' 필드를 반드시 포함하세요 (사용 시스템명이 없으면 null).\n"
-    "3. 각 단계마다 'next_steps' 필드를 반드시 포함하세요 (이어지는 다음 단계들의 'order' 번호를 배열로 명시, 예: [3, 4], 마지막 단계이면 []).\n"
-    "4. 규정에서 승인, 검토, 심사, 조건 판단, 분기 등의 의사결정 포인트를 반드시 최소 1개 이상 추출해야 합니다.\n"
+    "2. 각 단계마다 'system_used' 필드를 반드시 포함하세요 (사용 시스템명이 명시되지 않았거나 없으면 '시스템/수기'로 작성).\n"
+    "3. 각 단계, 의사결정, RACI 항목마다 'regulation_ref' 필드를 반드시 포함하세요 (근거가 되는 규정의 장, 절, 조항을 예: '제1장 제2절 제3조' 형식으로 작성. 명확하지 않으면 '알 수 없음'으로 작성).\n"
+    "4. 각 단계마다 'next_steps' 필드를 반드시 포함하세요 (이어지는 다음 단계들의 'order' 번호를 배열로 명시, 예: [3, 4], 마지막 단계이면 []).\n"
+    "5. 규정에서 승인, 검토, 심사, 조건 판단, 분기 등의 의사결정 포인트를 반드시 최소 1개 이상 추출해야 합니다.\n"
     "   - 해당 swim_lane 단계에 'decision': true를 설정하세요.\n"
     "   - 'decisions' 배열에 반드시 해당 내용을 포함시켜야 합니다. 절대로 비워두지 마세요.\n"
     "   - decisions의 각 항목은 yes_outcome(조건 충족 시), no_outcome(조건 미충족 시)를 구체적으로 작성하세요.\n"
@@ -107,7 +111,8 @@ JSON_FORMAT = """
           "action": "액션 설명", 
           "decision": false,
           "task_type": "document", 
-          "system_used": "사용 시스템명(없으면 null)",
+          "system_used": "사용 시스템명(없으면 '시스템/수기')",
+          "regulation_ref": "제1장 제2절 제3조",
           "next_steps": [2]
         },
         {
@@ -115,7 +120,8 @@ JSON_FORMAT = """
           "action": "의사결정점", 
           "decision": true,
           "task_type": "approval",
-          "system_used": null,
+          "system_used": "시스템/수기",
+          "regulation_ref": "제1장 제2절 제4조",
           "next_steps": [3, 4]
         }
       ]
@@ -126,7 +132,8 @@ JSON_FORMAT = """
       "id": 1,
       "question": "의사결정 질문",
       "yes_outcome": "Yes 결과",
-      "no_outcome": "No 결과"
+      "no_outcome": "No 결과",
+      "regulation_ref": "제1장 제2절 제4조"
     }
   ],
   "raci": [
@@ -135,7 +142,8 @@ JSON_FORMAT = """
       "responsible": "담당",
       "accountable": "책임",
       "consulted": "상의",
-      "informed": "보고"
+      "informed": "보고",
+      "regulation_ref": "제1장 제2절 제3조"
     }
   ],
   "system_interfaces": [

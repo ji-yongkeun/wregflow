@@ -411,7 +411,8 @@ async def download_process_excel(
                     "role": role,
                     "description": step_obj.get("description", ""),
                     "outputs": step_obj.get("outputs", []),
-                    "related_editions": step_obj.get("related_editions", [])
+                    "related_editions": step_obj.get("related_editions", []),
+                    "regulation_ref": step_obj.get("regulation_ref", "")
                 })
         steps.sort(key=lambda x: x["order"])
         
@@ -421,13 +422,13 @@ async def download_process_excel(
             headers = [
                 "테스트 단계", "테스트 주체 (역할)", "테스트 시나리오명", "테스트 절차 (상세)", 
                 "사전 조건 / 입력 데이터", "예상 결과 (Outputs)", "확인 시스템 (인터페이스)", 
-                "의사결정 분기 결과", "관련 규정 편"
+                "의사결정 분기 결과", "관련 규정"
             ]
         else:
             headers = [
                 "단계 번호", "담당 부서 / 주체", "업무 프로세스 단계명", "업무 상세 설명", 
                 "RACI 역할 분담", "생성 산출물 (Outputs)", "연계 시스템", 
-                "의사결정 분기 내용", "관련 규정 편"
+                "의사결정 분기 내용", "관련 규정"
             ]
             
         # 헤더 출력
@@ -485,6 +486,10 @@ async def download_process_excel(
             interfaces_text = "\n".join(matched_interfaces) if matched_interfaces else ""
             editions_text = ", ".join([f"{ed}편" for ed in step["related_editions"]]) if step["related_editions"] else ""
             
+            regulation_text = step.get("regulation_ref", "").strip()
+            if not regulation_text or regulation_text == "알 수 없음":
+                regulation_text = editions_text
+            
             # 셀 쓰기
             if type == "ft":
                 # FT 기준
@@ -496,7 +501,7 @@ async def download_process_excel(
                 ws.cell(row=row_idx, column=6, value=outputs_text or "처리 결과 반영").alignment = left_align
                 ws.cell(row=row_idx, column=7, value=interfaces_text or "-").alignment = left_align
                 ws.cell(row=row_idx, column=8, value=decision_text or "-").alignment = left_align
-                ws.cell(row=row_idx, column=9, value=editions_text or "-").alignment = center_align
+                ws.cell(row=row_idx, column=9, value=regulation_text or "-").alignment = center_align
             else:
                 # FS 기준
                 ws.cell(row=row_idx, column=1, value=step["order"]).alignment = center_align
@@ -507,7 +512,7 @@ async def download_process_excel(
                 ws.cell(row=row_idx, column=6, value=outputs_text or "-").alignment = left_align
                 ws.cell(row=row_idx, column=7, value=interfaces_text or "-").alignment = left_align
                 ws.cell(row=row_idx, column=8, value=decision_text or "-").alignment = left_align
-                ws.cell(row=row_idx, column=9, value=editions_text or "-").alignment = center_align
+                ws.cell(row=row_idx, column=9, value=regulation_text or "-").alignment = center_align
                 
             # 전체 셀 폰트 및 테두리 설정
             for col_idx in range(1, 10):

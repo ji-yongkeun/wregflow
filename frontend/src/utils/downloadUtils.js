@@ -239,15 +239,16 @@ export const downloadRaciAsCsv = (data, filename = 'raci.csv') => {
     if (Array.isArray(raciData) && raciData.length > 0) {
       const firstItem = raciData[0]
       if ('task' in firstItem) {
-        // Detailed Analysis RACI format (task, responsible, accountable, consulted, informed)
-        csv += '작업,R,A,C,I\n'
+        // Detailed Analysis RACI format (task, responsible, accountable, consulted, informed, regulation_ref)
+        csv += '작업,R,A,C,I,관련 규정\n'
         raciData.forEach(item => {
           const task = (item.task || '').replace(/"/g, '""')
           const r = (item.responsible || '').replace(/"/g, '""')
           const a = (item.accountable || '').replace(/"/g, '""')
           const c = (item.consulted || '').replace(/"/g, '""')
           const i = (item.informed || '').replace(/"/g, '""')
-          csv += `"${task}","${r}","${a}","${c}","${i}"\n`
+          const ref = (item.regulation_ref || '').replace(/"/g, '""')
+          csv += `"${task}","${r}","${a}","${c}","${i}","${ref}"\n`
         })
       } else {
         // Other format (role, activities)
@@ -307,15 +308,16 @@ export const downloadDecisionsAsCsv = (data, filename = 'decisions.csv') => {
 
     // UTF-8 BOM 설정 (엑셀 한글 깨짐 방지)
     let csv = '\uFEFF'
-    csv += 'ID,질문,YES 결과,NO 결과\n'
+    csv += 'ID,질문,YES 결과,NO 결과,관련 규정\n'
     
     decisions.forEach((decision, idx) => {
       const id = decision.id || idx + 1
       const question = (decision.question || '').replace(/"/g, '""')
       const yesOutcome = (decision.yes_outcome || decision.yesOutcome || '').replace(/"/g, '""')
       const noOutcome = (decision.no_outcome || decision.noOutcome || '').replace(/"/g, '""')
+      const ref = (decision.regulation_ref || '').replace(/"/g, '""')
       
-      csv += `${id},"${question}","${yesOutcome}","${noOutcome}"\n`
+      csv += `${id},"${question}","${yesOutcome}","${noOutcome}","${ref}"\n`
     })
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -870,164 +872,296 @@ export const downloadElementAsImage = async (element, filename = 'diagram.png') 
   }
 }
 
+// DOM 요소를 PDF A3 세로 형식으로 저장
+export const downloadElementAsPdfA3 = async (element, title = '', filename = 'diagram.pdf') => {
+  try {
+    if (!element) { alert('캡처할 요소를 찾을 수 없습니다'); return }
+
+    const html2canvas = (await import('html2canvas')).default
+    const { jsPDF } = await import('jspdf')
+
+    // A3 세로: 297mm × 420mm
+    const A3_W_MM = 297
+    const A3_H_MM = 420
+    const MARGIN_MM = 8
+
+    const canvas = await html2canvas(element, {
+      backgroundColor: null,   // 화면 배경색 그대로 보존
+      scale: 3,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+    })
+
+    const imgData = canvas.toDataURL('image/png')
+    const imgW = canvas.width
+    const imgH = canvas.height
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a3' })
+
+    // 타이틀 영역 확보
+    const titleH = title ? 10 : 0
+    const areaW = A3_W_MM - MARGIN_MM * 2
+    const areaH = A3_H_MM - MARGIN_MM * 2 - titleH
+
+    // 이미지 비율 유지하며 A3에 맞게 스케일
+    const ratio = imgW / imgH
+    let drawW = areaW
+    let drawH = drawW / ratio
+    if (drawH > areaH) { drawH = areaH; drawW = drawH * ratio }
+    const drawX = MARGIN_MM + (areaW - drawW) / 2
+    const drawY = MARGIN_MM + titleH + (areaH - drawH) / 2
+
+    if (title) {
+      pdf.setFontSize(13)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(30, 64, 175)
+      pdf.text(title, MARGIN_MM, MARGIN_MM + 7)
+    }
+
+    pdf.addImage(imgData, 'PNG', drawX, drawY, drawW, drawH)
+    pdf.save(filename)
+  } catch (err) {
+    console.error('PDF 저장 실패:', err)
+    alert('PDF 저장에 실패했습니다: ' + err.message)
+  }
+}
+
 // Swim Lane 데이터를 PPT(pptxgenjs)로 다운로드
+// A3 가로 스윔레인 PPT — 행=역할, 열=단계(order 기준), A3 가로 사이즈, 페이지 넘김 지원
 export const downloadSwimlanePPT = async (swimData, processName, filename) => {
   try {
     const pptxgen = (await import('pptxgenjs')).default
     const pptx = new pptxgen()
-    pptx.layout = 'LAYOUT_WIDE'   // 13.33 × 7.5 inches
+
+    // A3 가로 (420mm × 297mm = 16.54" × 11.69")
+    pptx.defineLayout({ name: 'A3_LANDSCAPE', width: 16.54, height: 11.69 })
+    pptx.layout = 'A3_LANDSCAPE'
     pptx.title = processName || 'Swim Lane Diagram'
 
-    const slide = pptx.addSlide()
-    slide.background = { fill: '0A0F1E' }
-
-    // ── 레이아웃 상수 (인치) ──
-    const M       = 0.25   // 외부 여백
+    const FONT    = 'Malgun Gothic'
+    const M       = 0.25    // 외부 여백
     const TITLE_H = 0.45
-    const HDR_W   = 1.55   // 레인 헤더 너비
-    const LANE_H  = 1.30   // 레인 높이
-    const STEP_W  = 1.90   // 스텝 셀 너비
-    const CARD_H  = 1.05   // 카드 높이
-    const CARD_MX = 0.12   // 카드 좌우 여백
+    const HDR_W   = 1.55    // 레인 헤더 너비
+    const STEP_W  = 1.90    // 스텝 열 너비
+    const CARD_MX = 0.12    // 카드 좌우 내부 여백
     const CARD_W  = STEP_W - CARD_MX * 2
 
-    // 최대 로컬 order 계산
-    let maxOrder = 1
-    swimData.forEach(lane => {
-      lane.steps?.forEach(s => { if ((s.order || 1) > maxOrder) maxOrder = s.order })
-    })
-
-    const totalW  = HDR_W + maxOrder * STEP_W + 0.3
+    const SLIDE_W = 16.54
+    const SLIDE_H = 11.69
     const startY  = M + TITLE_H
 
-    // ── 제목 ──
-    slide.addText(processName || 'Swim Lane 다이어그램', {
-      x: M, y: M * 0.4, w: totalW, h: TITLE_H,
-      fontSize: 18, bold: true, color: '93C5FD',
-      fontFace: 'Malgun Gothic', align: 'left',
+    // 슬라이드당 표시 가능한 스텝 수
+    const availStepW   = SLIDE_W - M * 2 - HDR_W
+    const stepsPerSlide = Math.max(1, Math.floor(availStepW / STEP_W))
+
+    // 레인 높이 (레인 수에 맞게 분배, 1.0" ~ 2.2")
+    const numLanes = swimData.length
+    const availH   = SLIDE_H - M * 2 - TITLE_H - 0.35  // 0.35 = 범례 공간
+    const LANE_H   = Math.min(2.2, Math.max(1.0, availH / Math.max(numLanes, 1)))
+    const CARD_H   = LANE_H * 0.76
+
+    // 전체 고유 order 목록 수집
+    const allOrders = new Set()
+    swimData.forEach(lane => {
+      ;(lane.steps || []).forEach(s => allOrders.add(s.order != null ? s.order : 9999))
     })
+    const sortedOrders = [...allOrders].sort((a, b) => a - b)
+    if (!sortedOrders.length) { alert('steps 데이터가 없습니다'); return }
 
-    // ── 레인별 렌더링 ──
-    swimData.forEach((lane, li) => {
-      const lY = startY + li * LANE_H
-      const bgFill = li % 2 === 0 ? '1E293B' : '0F172A'
+    // 페이지 분할: 각 페이지는 stepsPerSlide 개의 order를 담당
+    const pages = []
+    for (let i = 0; i < sortedOrders.length; i += stepsPerSlide)
+      pages.push(sortedOrders.slice(i, i + stepsPerSlide))
 
-      // 레인 배경
-      slide.addShape(pptx.ShapeType.rect, {
-        x: M, y: lY, w: totalW, h: LANE_H,
-        fill: { color: bgFill },
-        line: { color: '1E3A5F', width: 0.4 },
+    const totalPages = pages.length
+
+    pages.forEach((pageOrders, pageIdx) => {
+      // 이 페이지의 order → 열 인덱스 (0-based) 매핑
+      const orderToCol = {}
+      pageOrders.forEach((ord, ci) => { orderToCol[ord] = ci })
+
+      const slide = pptx.addSlide()
+      slide.background = { fill: '0A0F1E' }
+
+      // ── 제목 ──
+      const pageLabel = totalPages > 1 ? `  (${pageIdx + 1}/${totalPages})` : ''
+      slide.addText(`${processName || 'Swim Lane 다이어그램'}${pageLabel}`, {
+        x: M, y: M * 0.4, w: SLIDE_W - M * 2, h: TITLE_H,
+        fontSize: 16, bold: true, color: '93C5FD',
+        fontFace: FONT, align: 'left',
       })
 
-      // 헤더 구분선
-      slide.addShape(pptx.ShapeType.line, {
-        x: M + HDR_W, y: lY, w: 0, h: LANE_H,
-        line: { color: '4F46E5', width: 0.6 },
-      })
+      // ── 레인별 렌더링 ──
+      swimData.forEach((lane, li) => {
+        const lY    = startY + li * LANE_H
+        const bgFill = li % 2 === 0 ? '1E293B' : '0F172A'
+        const totalRowW = HDR_W + pageOrders.length * STEP_W
 
-      // 헤더 카드
-      const hX = M + 0.06
-      const hY = lY + (LANE_H - CARD_H) / 2
-      slide.addShape(pptx.ShapeType.roundRect, {
-        x: hX, y: hY, w: HDR_W - 0.14, h: CARD_H,
-        fill: { color: '0F172A' },
-        line: { color: '4F46E5', width: 1.5 },
-        arcSize: 8,
-      })
-      slide.addText(lane.role, {
-        x: hX, y: hY, w: HDR_W - 0.14, h: CARD_H,
-        fontSize: lane.role.length > 14 ? 7 : 9,
-        bold: true, color: '93C5FD',
-        align: 'center', valign: 'middle',
-        fontFace: 'Malgun Gothic', wrap: true,
-      })
+        // 레인 배경
+        slide.addShape(pptx.ShapeType.rect, {
+          x: M, y: lY, w: totalRowW, h: LANE_H,
+          fill: { color: bgFill }, line: { color: '1E3A5F', width: 0.4 },
+        })
 
-      // ── 각 스텝 ──
-      const sorted = [...(lane.steps || [])].sort((a, b) => (a.order || 0) - (b.order || 0))
+        // 헤더 구분선
+        slide.addShape(pptx.ShapeType.line, {
+          x: M + HDR_W, y: lY, w: 0, h: LANE_H,
+          line: { color: '4F46E5', width: 0.6 },
+        })
 
-      sorted.forEach((step, si) => {
-        const lo   = step.order || si + 1
-        const cX   = M + HDR_W + (lo - 1) * STEP_W + CARD_MX
-        const cY   = lY + (LANE_H - CARD_H) / 2
-        const isDec = step.decision === true
-
-        // 카드 배경
+        // 헤더 카드
+        const hX = M + 0.06
+        const hY = lY + (LANE_H - CARD_H) / 2
         slide.addShape(pptx.ShapeType.roundRect, {
-          x: cX, y: cY, w: CARD_W, h: CARD_H,
-          fill: { color: isDec ? 'B45309' : '312E81' },
-          line: { color: isDec ? 'FCD34D' : '818CF8', width: 1.5 },
-          arcSize: 10,
+          x: hX, y: hY, w: HDR_W - 0.14, h: CARD_H,
+          fill: { color: '0F172A' }, line: { color: '4F46E5', width: 1.5 }, arcSize: 8,
+        })
+        slide.addText(lane.role || '', {
+          x: hX, y: hY, w: HDR_W - 0.14, h: CARD_H,
+          fontSize: (lane.role || '').length > 14 ? 7 : 9,
+          bold: true, color: '93C5FD',
+          align: 'center', valign: 'middle', fontFace: FONT, wrap: true,
         })
 
-        // 상단 배지
-        slide.addText(isDec ? '⚡ 의사결정' : `STEP ${lo}`, {
-          x: cX, y: cY + 0.04, w: CARD_W, h: 0.20,
-          fontSize: 6.5, bold: true,
-          color: isDec ? 'FCD34D' : 'A5B4FC',
-          align: 'center', fontFace: 'Malgun Gothic',
+        // ── 스텝 카드 ──
+        const sorted = [...(lane.steps || [])].sort((a, b) => (a.order || 0) - (b.order || 0))
+
+        sorted.forEach((step) => {
+          const lo = step.order != null ? step.order : 9999
+          if (!(lo in orderToCol)) return  // 이 페이지에 없는 스텝 skip
+
+          const colIdx = orderToCol[lo]
+          const cX     = M + HDR_W + colIdx * STEP_W + CARD_MX
+          const cY     = lY + (LANE_H - CARD_H) / 2
+          const isDec  = step.decision === true
+
+          // 카드 배경 (흰색 카드)
+          slide.addShape(pptx.ShapeType.roundRect, {
+            x: cX, y: cY, w: CARD_W, h: CARD_H,
+            fill: { color: isDec ? 'FEF9C3' : 'FFFFFF' },
+            line: { color: isDec ? 'F59E0B' : '93C5FD', width: 0.8 },
+            arcSize: 12,
+          })
+
+          if (isDec) {
+            const actionText = step.action || ''
+            let refStr = ''
+            if (step.regulation_ref && step.regulation_ref !== '알 수 없음') {
+                refStr = step.regulation_ref
+            } else if (step.related_editions && step.related_editions.length > 0) {
+                refStr = step.related_editions.map(e => `${e}편`).join(', ')
+            }
+            const refText = refStr ? `\n[${refStr}]` : ''
+            const textToDraw = actionText + refText
+            // 의사결정 레이블 + 텍스트
+            slide.addText('⚡ 의사결정', {
+              x: cX, y: cY + 0.05, w: CARD_W, h: 0.18,
+              fontSize: 6.5, bold: true, color: 'B45309',
+              align: 'center', fontFace: FONT,
+            })
+            slide.addText(finalAction, {
+              x: cX + 0.04, y: cY + 0.25, w: CARD_W - 0.08, h: CARD_H - 0.44,
+              fontSize: 8, bold: true, color: '78350F',
+              align: 'center', valign: 'top', fontFace: FONT, wrap: true,
+            })
+          } else {
+            // 번호 배지 (좌상단, 파란 사각형) — 최소 2자리 한 줄 보장
+            const numStr = String(lo)
+            const nbW = Math.max(0.32, numStr.length * 0.11 + 0.10)
+            const nbH = 0.20
+            slide.addShape(pptx.ShapeType.roundRect, {
+              x: cX + 0.06, y: cY + 0.06, w: nbW, h: nbH,
+              fill: { color: '2563EB' }, line: { color: '2563EB', width: 0 },
+              arcSize: 15,
+            })
+            slide.addText(numStr, {
+              x: cX + 0.06, y: cY + 0.06, w: nbW, h: nbH,
+              fontSize: 6, bold: true, color: 'FFFFFF',
+              fontFace: FONT, align: 'center', valign: 'middle',
+            })
+
+            // 시스템/유형 칩 (우상단)
+            const typeLabel = { system: '시스템', approval: '수기', document: '문서', general: '일반' }[step.task_type] || ''
+            const sysLabel = step.system_used || ''
+            const chipText = [typeLabel, sysLabel].filter(Boolean).join('/')
+            if (chipText) {
+              const chipW = Math.max(0.42, chipText.length * 0.065 + 0.08)
+              const chipH = 0.15
+              const chipX = cX + CARD_W - chipW - 0.04
+              const chipY = cY + 0.05
+              const chipColor = sysLabel ? '059669' : '64748B'
+              slide.addShape(pptx.ShapeType.roundRect, {
+                x: chipX, y: chipY, w: chipW, h: chipH,
+                fill: { color: chipColor }, line: { color: chipColor, width: 0 },
+                arcSize: 50,
+              })
+              slide.addText(chipText, {
+                x: chipX, y: chipY, w: chipW, h: chipH,
+                fontSize: 5, bold: true, color: 'FFFFFF',
+                fontFace: FONT, align: 'center', valign: 'middle',
+              })
+            }
+
+            // 액션 텍스트 (진하고 어두운 색)
+            const actionText = step.action || ''
+            const refText = (step.regulation_ref && step.regulation_ref !== '알 수 없음') ? `\n[${step.regulation_ref}]` : ''
+            const finalAction = actionText + refText
+            slide.addText(finalAction, {
+              x: cX + 0.06, y: cY + 0.28, w: CARD_W - 0.12, h: CARD_H - 0.48,
+              fontSize: 8, bold: true, color: '1E293B',
+              align: 'center', valign: 'top', fontFace: FONT, wrap: true,
+            })
+
+            // 업무 유형 레이블 (하단, 회색)
+            const taskTypeName = { system: '시스템', approval: '수기', document: '문서작업', general: '일반업무' }[step.task_type] || ''
+            if (taskTypeName) {
+              slide.addText(taskTypeName, {
+                x: cX + 0.04, y: cY + CARD_H - 0.18, w: CARD_W - 0.08, h: 0.16,
+                fontSize: 5.5, color: '94A3B8', align: 'center', fontFace: FONT,
+              })
+            }
+          }
+
+          // 열 사이 화살표 (같은 레인, 다음 열로)
+          if (colIdx < pageOrders.length - 1) {
+            slide.addShape(pptx.ShapeType.line, {
+              x: cX + CARD_W, y: lY + LANE_H / 2,
+              w: STEP_W - CARD_W - CARD_MX, h: 0,
+              line: { color: '6366F1', width: 1.5, endArrowhead: 'arrow' },
+            })
+          }
         })
-
-        // 액션 텍스트
-        slide.addText(step.action, {
-          x: cX + 0.04, y: cY + 0.22, w: CARD_W - 0.08, h: CARD_H - 0.50,
-          fontSize: 8, bold: true,
-          color: isDec ? 'FEF3C7' : 'E0E7FF',
-          align: 'center', valign: 'top',
-          fontFace: 'Malgun Gothic', wrap: true,
-        })
-
-        if (step.system_used) {
-          slide.addText(`[${step.system_used}]`, {
-            x: cX, y: cY + CARD_H - 0.28, w: CARD_W, h: 0.15,
-            fontSize: 6.5, bold: true, color: '10B981', align: 'center', fontFace: 'Malgun Gothic'
-          })
-        }
-
-        const typeText = {
-          'system': '💻 시스템', 'approval': '✅ 승인', 'general': '⚙️ 일반', 'document': '📄 문서'
-        }[step.task_type] || step.task_type || ''
-        
-        if (typeText) {
-          slide.addText(typeText, {
-            x: cX, y: cY + CARD_H - 0.15, w: CARD_W, h: 0.15,
-            fontSize: 6.5, bold: true, color: '94A3B8', align: 'center', fontFace: 'Malgun Gothic'
-          })
-        }
-
-        // 레인 내 화살표 (다음 스텝으로)
-        if (si < sorted.length - 1) {
-          slide.addShape(pptx.ShapeType.line, {
-            x: cX + CARD_W, y: lY + LANE_H / 2,
-            w: STEP_W - CARD_W - CARD_MX, h: 0,
-            line: { color: '6366F1', width: 1.5, endArrowhead: 'arrow' },
-          })
-        }
       })
+
+      // ── 범례 ──
+      const legendY = startY + numLanes * LANE_H + 0.08
+      if (legendY + 0.25 < SLIDE_H - M) {
+        slide.addShape(pptx.ShapeType.roundRect, {
+          x: M, y: legendY, w: 0.42, h: 0.22,
+          fill: { color: '312E81' }, line: { color: '818CF8', width: 1 }, arcSize: 8,
+        })
+        slide.addText('일반 프로세스', {
+          x: M + 0.48, y: legendY, w: 1.2, h: 0.22, fontSize: 8, color: 'CBD5E1', fontFace: FONT,
+        })
+        slide.addShape(pptx.ShapeType.roundRect, {
+          x: M + 2.1, y: legendY, w: 0.42, h: 0.22,
+          fill: { color: 'B45309' }, line: { color: 'FCD34D', width: 1 }, arcSize: 8,
+        })
+        slide.addText('의사결정 포인트', {
+          x: M + 2.58, y: legendY, w: 1.3, h: 0.22, fontSize: 8, color: 'CBD5E1', fontFace: FONT,
+        })
+        if (totalPages > 1) {
+          slide.addText(`${pageIdx + 1} / ${totalPages}`, {
+            x: SLIDE_W - M - 0.8, y: legendY, w: 0.8, h: 0.22,
+            fontSize: 8, color: '64748B', fontFace: FONT, align: 'right',
+          })
+        }
+      }
     })
-
-    // ── 범례 ──
-    const legendY = startY + swimData.length * LANE_H + 0.12
-    if (legendY < 7.1) {
-      slide.addShape(pptx.ShapeType.roundRect, {
-        x: M, y: legendY, w: 0.42, h: 0.22,
-        fill: { color: '312E81' }, line: { color: '818CF8', width: 1 }, arcSize: 8,
-      })
-      slide.addText('일반 프로세스', {
-        x: M + 0.48, y: legendY, w: 1.2, h: 0.22,
-        fontSize: 8, color: 'CBD5E1', fontFace: 'Malgun Gothic',
-      })
-      slide.addShape(pptx.ShapeType.roundRect, {
-        x: M + 2.1, y: legendY, w: 0.42, h: 0.22,
-        fill: { color: 'B45309' }, line: { color: 'FCD34D', width: 1 }, arcSize: 8,
-      })
-      slide.addText('의사결정 포인트', {
-        x: M + 2.58, y: legendY, w: 1.3, h: 0.22,
-        fontSize: 8, color: 'CBD5E1', fontFace: 'Malgun Gothic',
-      })
-    }
 
     const dateStr = new Date().toISOString().slice(0, 10)
-    await pptx.writeFile({ fileName: filename || `swimlane_${dateStr}.pptx` })
+    await pptx.writeFile({ fileName: filename || `swimlane_A3가로_${dateStr}.pptx` })
   } catch (err) {
     console.error('PPT 저장 실패:', err)
     alert('PPT 저장에 실패했습니다: ' + err.message)
@@ -1120,9 +1254,262 @@ export const downloadSingleAnalysisExcel = async (analysis, type) => {
     swim_lanes: typeof analysis.swim_lanes === 'string' ? JSON.parse(analysis.swim_lanes) : (analysis.swim_lanes || []),
     raci: typeof analysis.raci === 'string' ? JSON.parse(analysis.raci) : (analysis.raci || []),
     decisions: typeof analysis.decisions === 'string' ? JSON.parse(analysis.decisions) : (analysis.decisions || []),
-    system_interfaces: typeof analysis.system_interfaces === 'string' 
-      ? JSON.parse(analysis.system_interfaces) 
+    system_interfaces: typeof analysis.system_interfaces === 'string'
+      ? JSON.parse(analysis.system_interfaces)
       : (analysis.system_interfaces || [])
   };
   return downloadProcessExcel(payload, type);
+}
+
+// A3 세로 스윔레인 PPT — 컬럼=역할, 행=단계(전역 order 기준), 페이지 초과시 다음 슬라이드로
+export const downloadSwimlaneA3PPT = async (swimData, processName, filename) => {
+  try {
+    const pptxgen = (await import('pptxgenjs')).default
+    const pptx = new pptxgen()
+
+    // A3 Portrait (297mm × 420mm = 11.69" × 16.54")
+    pptx.defineLayout({ name: 'A3_PORTRAIT', width: 11.69, height: 16.54 })
+    pptx.layout = 'A3_PORTRAIT'
+    pptx.title = processName || 'Swim Lane 다이어그램'
+
+    // Layout constants (inches)
+    const M = 0.25          // outer margin
+    const TITLE_H = 0.42    // title bar
+    const HDR_H = 0.52      // lane header height
+    const STEP_H = 0.82     // step box height
+    const STEP_GAP = 0.18   // gap between boxes
+    const STEP_SLOT = STEP_H + STEP_GAP
+
+    const SLIDE_W = 11.69
+    const SLIDE_H = 16.54
+    const laneAreaW = SLIDE_W - M * 2
+    const contentY = M + TITLE_H + HDR_H
+    const contentH = SLIDE_H - contentY - M
+    const stepsPerSlide = Math.max(1, Math.floor(contentH / STEP_SLOT))
+
+    const numLanes = swimData.length
+    if (!numLanes) { alert('swim_lanes 데이터가 없습니다'); return }
+    const laneW = laneAreaW / numLanes
+
+    // { order: { laneIdx: step } }
+    const rowMap = {}
+    swimData.forEach((lane, li) => {
+      ;(lane.steps || []).forEach(step => {
+        const ord = step.order != null ? step.order : 9999
+        if (!rowMap[ord]) rowMap[ord] = {}
+        rowMap[ord][li] = step
+      })
+    })
+
+    const sortedOrders = Object.keys(rowMap).map(Number).sort((a, b) => a - b)
+    if (!sortedOrders.length) { alert('steps 데이터가 없습니다'); return }
+
+    const pages = []
+    for (let i = 0; i < sortedOrders.length; i += stepsPerSlide)
+      pages.push(sortedOrders.slice(i, i + stepsPerSlide))
+
+    const FONT = 'Malgun Gothic'
+    const totalPages = pages.length
+
+    // Lane alternate background colors
+    const LANE_BG = ['F0F9FF', 'F5F3FF', 'F0FDF4', 'FFFBEB', 'FFF1F2', 'F8FAFC']
+
+    pages.forEach((pageOrders, pageIdx) => {
+      const slide = pptx.addSlide()
+      slide.background = { fill: 'FFFFFF' }
+
+      // ── Title bar ──
+      const pageLabel = totalPages > 1 ? ` (${pageIdx + 1}/${totalPages})` : ''
+      slide.addShape(pptx.ShapeType.rect, {
+        x: M, y: M, w: laneAreaW, h: TITLE_H,
+        fill: { color: '1D4ED8' }, line: { color: '1D4ED8', width: 0 },
+      })
+      slide.addText(`${processName || '업무 프로세스'}${pageLabel}`, {
+        x: M, y: M, w: laneAreaW, h: TITLE_H,
+        fontSize: 14, bold: true, color: 'FFFFFF',
+        fontFace: FONT, align: 'center', valign: 'middle',
+      })
+
+      // ── Lane columns ──
+      swimData.forEach((lane, li) => {
+        const lx = M + li * laneW
+
+        // Lane background (alternating)
+        slide.addShape(pptx.ShapeType.rect, {
+          x: lx, y: M + TITLE_H, w: laneW, h: SLIDE_H - TITLE_H - M * 2,
+          fill: { color: LANE_BG[li % LANE_BG.length] },
+          line: { color: 'transparent', width: 0 },
+        })
+
+        // Vertical separator (except leftmost)
+        if (li > 0) {
+          slide.addShape(pptx.ShapeType.line, {
+            x: lx, y: M + TITLE_H, w: 0, h: SLIDE_H - TITLE_H - M * 2,
+            line: { color: 'CBD5E1', width: 0.5, dashType: 'dash' },
+          })
+        }
+
+        // Lane header box
+        slide.addShape(pptx.ShapeType.rect, {
+          x: lx, y: M + TITLE_H, w: laneW, h: HDR_H,
+          fill: { color: 'DBEAFE' }, line: { color: '93C5FD', width: 0.5 },
+        })
+        const roleName = lane.role || `레인 ${li + 1}`
+        const roleFontSize = Math.min(9, Math.max(6, Math.floor(72 / roleName.length)))
+        slide.addText(roleName, {
+          x: lx + 0.05, y: M + TITLE_H, w: laneW - 0.1, h: HDR_H,
+          fontSize: roleFontSize, bold: true, color: '1E40AF',
+          fontFace: FONT, align: 'center', valign: 'middle', wrap: true,
+        })
+      })
+
+      // ── Step boxes ──
+      pageOrders.forEach((order, rowIdx) => {
+        const rowSteps = rowMap[order] || {}
+        const sy = contentY + rowIdx * STEP_SLOT
+
+        Object.entries(rowSteps).forEach(([liStr, step]) => {
+          const li = parseInt(liStr, 10)
+          const lx = M + li * laneW
+          const isDecision = step.decision === true
+          const action = step.action || step.step_name || ''
+          const refText = (step.regulation_ref && step.regulation_ref !== '알 수 없음') ? `\n[${step.regulation_ref}]` : ''
+          const finalAction = action + refText
+          const systemUsed = step.system_used || null
+
+          const pad = 0.1
+          const bx = lx + pad
+          const bw = laneW - pad * 2
+          const bh = STEP_H
+
+          if (isDecision) {
+            // Decision point — diamond, amber palette (유지)
+            slide.addShape(pptx.ShapeType.diamond, {
+              x: bx, y: sy, w: bw, h: bh,
+              fill: { color: 'FEF9C3' }, line: { color: 'F59E0B', width: 1.2 },
+            })
+            slide.addText(finalAction, {
+              x: bx, y: sy, w: bw, h: bh,
+              fontSize: 7, bold: true, color: '78350F',
+              fontFace: FONT, align: 'center', valign: 'middle', wrap: true,
+            })
+          } else {
+            // Regular task — 흰색 카드, 파란 테두리
+            slide.addShape(pptx.ShapeType.roundRect, {
+              x: bx, y: sy, w: bw, h: bh,
+              fill: { color: 'FFFFFF' }, line: { color: '93C5FD', width: 0.8 },
+              arcSize: 12,
+            })
+
+            // 번호 배지 (좌상단, 파란 사각형) — 자릿수에 따라 너비 동적 계산
+            const numStr = String(order)
+            const badgeW = Math.max(0.28, numStr.length * 0.10 + 0.10)
+            const badgeH = 0.20
+            const badgeX = bx + 0.05
+            const badgeY = sy + 0.05
+            slide.addShape(pptx.ShapeType.roundRect, {
+              x: badgeX, y: badgeY, w: badgeW, h: badgeH,
+              fill: { color: '2563EB' }, line: { color: '2563EB', width: 0 },
+              arcSize: 15,
+            })
+            slide.addText(numStr, {
+              x: badgeX, y: badgeY, w: badgeW, h: badgeH,
+              fontSize: 6, bold: true, color: 'FFFFFF',
+              fontFace: FONT, align: 'center', valign: 'middle',
+            })
+
+            // 시스템/유형 칩 (우상단)
+            const typeLabel = { system: '시스템', approval: '수기', document: '문서', general: '일반' }[step.task_type] || ''
+            const sysLabel = systemUsed || ''
+            const chipText = [typeLabel, sysLabel].filter(Boolean).join('/')
+            if (chipText) {
+              const charW = /[^\x00-\x7F]/.test(chipText) ? 0.075 : 0.060
+              const chipW = Math.max(0.40, chipText.length * charW + 0.10)
+              const chipH = 0.16
+              const chipX = bx + bw - chipW - 0.04
+              const chipY = sy + 0.04
+              const chipColor = sysLabel ? '059669' : '64748B'
+              slide.addShape(pptx.ShapeType.roundRect, {
+                x: chipX, y: chipY, w: chipW, h: chipH,
+                fill: { color: chipColor }, line: { color: chipColor, width: 0 },
+                arcSize: 50,
+              })
+              slide.addText(chipText, {
+                x: chipX, y: chipY, w: chipW, h: chipH,
+                fontSize: 5, bold: true, color: 'FFFFFF',
+                fontFace: FONT, align: 'center', valign: 'middle',
+              })
+            }
+
+            // 액션 텍스트 (배지 오른쪽, 진하고 어두운 색)
+            const textStartX = badgeX + badgeW + 0.05
+            slide.addText(finalAction, {
+              x: textStartX, y: sy + 0.04, w: bw - (textStartX - bx) - 0.04, h: bh - 0.22,
+              fontSize: 7.5, bold: true, color: '1E293B',
+              fontFace: FONT, align: 'left', valign: 'middle', wrap: true,
+            })
+
+            // 업무 유형 레이블 (하단, 회색)
+            const taskTypeName = { system: '시스템', approval: '수기', document: '문서작업', general: '일반업무' }[step.task_type] || ''
+            if (taskTypeName) {
+              slide.addText(taskTypeName, {
+                x: bx + 0.05, y: sy + bh - 0.18, w: bw - 0.10, h: 0.16,
+                fontSize: 5.5, color: '94A3B8',
+                fontFace: FONT, align: 'right',
+              })
+            }
+          }
+        })
+      })
+
+      // ── Legend ──
+      const legendY = SLIDE_H - M - 0.28
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: M, y: legendY, w: 0.38, h: 0.2,
+        fill: { color: '2563EB' }, line: { color: '1D4ED8', width: 0 }, arcSize: 12,
+      })
+      slide.addText('일반 프로세스', {
+        x: M + 0.44, y: legendY, w: 1.2, h: 0.2,
+        fontSize: 7.5, color: '475569', fontFace: FONT,
+      })
+      slide.addShape(pptx.ShapeType.diamond, {
+        x: M + 2.0, y: legendY, w: 0.38, h: 0.2,
+        fill: { color: 'FEF9C3' }, line: { color: 'F59E0B', width: 1 },
+      })
+      slide.addText('의사결정 포인트', {
+        x: M + 2.44, y: legendY, w: 1.3, h: 0.2,
+        fontSize: 7.5, color: '475569', fontFace: FONT,
+      })
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: M + 4.1, y: legendY, w: 0.32, h: 0.2,
+        fill: { color: '059669' }, line: { color: '059669', width: 0 }, arcSize: 50,
+      })
+      slide.addText('null = 미사용 시스템', {
+        x: M + 4.48, y: legendY, w: 1.6, h: 0.2,
+        fontSize: 7.5, color: '475569', fontFace: FONT,
+      })
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: M + 6.5, y: legendY, w: 0.32, h: 0.2,
+        fill: { color: '7C3AED' }, line: { color: '7C3AED', width: 0 }, arcSize: 50,
+      })
+      slide.addText('시스템 사용', {
+        x: M + 6.88, y: legendY, w: 1.2, h: 0.2,
+        fontSize: 7.5, color: '475569', fontFace: FONT,
+      })
+
+      // Page number
+      if (totalPages > 1) {
+        slide.addText(`${pageIdx + 1} / ${totalPages}`, {
+          x: laneAreaW - 0.5, y: legendY, w: 0.8, h: 0.2,
+          fontSize: 8, color: '94A3B8', fontFace: FONT, align: 'right',
+        })
+      }
+    })
+
+    const dateStr = new Date().toISOString().slice(0, 10)
+    await pptx.writeFile({ fileName: filename || `swimlane_A3세로_${dateStr}.pptx` })
+  } catch (err) {
+    console.error('A3 PPT 저장 실패:', err)
+    alert('A3 세로 PPT 저장에 실패했습니다: ' + err.message)
+  }
 }

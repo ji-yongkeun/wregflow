@@ -154,6 +154,20 @@ async def analyze_regulation_file(
                 db.commit()
 
             analysis_dict = analysis if isinstance(analysis, dict) else {}
+            
+            def replace_null_system_used(obj):
+                if isinstance(obj, dict):
+                    for k, v in obj.items():
+                        if k == 'system_used' and v in [None, 'null', 'None', '', '시스템&수기']:
+                            obj[k] = '시스템/수기'
+                        elif isinstance(v, (dict, list)):
+                            replace_null_system_used(v)
+                elif isinstance(obj, list):
+                    for item in obj:
+                        replace_null_system_used(item)
+            
+            replace_null_system_used(analysis_dict)
+
             db.add(AnalysisResult(
                 file_id=file_id,
                 edition=edition,  # 중요: edition 반드시 저장

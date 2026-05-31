@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import SwimlaneDiagram from './SwimlaneDiagram'
 import DecisionTable from './DecisionTable'
-import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage, downloadSingleAnalysisExcel, downloadSwimlanePPT, downloadRaciPPT, downloadDecisionsPPT, downloadElementAsPPT } from '../utils/downloadUtils'
+import { downloadSvgAsImage, downloadAsJson, downloadRaciAsCsv, downloadDecisionsAsCsv, downloadTableAsImage, downloadSingleAnalysisExcel, downloadSwimlanePPT, downloadRaciPPT, downloadDecisionsPPT, downloadElementAsPdfA3 } from '../utils/downloadUtils'
 import PermissionGuard from './PermissionGuard'
 import ExcelDropdownButton from './ExcelDropdownButton'
 
@@ -24,25 +24,34 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
     if (!data || !Array.isArray(data) || data.length === 0) {
       return <p className="no-data">데이터가 없습니다</p>
     }
+    const RACI_COL_ORDER = ['task', 'responsible', 'accountable', 'consulted', 'informed', 'regulation_ref']
+    const RACI_COL_LABELS = {
+      task: '작업', responsible: 'R(실무담당)', accountable: 'A(최종책임)',
+      consulted: 'C(협의/자문)', informed: 'I(정보수신)',
+      regulation_ref: '관련 규정'
+    }
+    const allKeys = [...new Set(data.flatMap(item => Object.keys(item)))]
+    const orderedKeys = [
+      ...RACI_COL_ORDER.filter(k => allKeys.includes(k)),
+      ...allKeys.filter(k => !RACI_COL_ORDER.includes(k)),
+    ]
     return (
       <table className="raci-table">
         <thead>
           <tr>
-            <th>작업</th>
-            <th>R(실무담당)</th>
-            <th>A(최종책임)</th>
-            <th>C(협의/자문)</th>
-            <th>I(정보수신)</th>
+            {orderedKeys.map(key => (
+              <th key={key}>{RACI_COL_LABELS[key] || key}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {data.map((item, idx) => (
             <tr key={idx}>
-              <td>{item.task}</td>
-              <td>{item.responsible}</td>
-              <td>{item.accountable}</td>
-              <td>{item.consulted}</td>
-              <td>{item.informed}</td>
+              {orderedKeys.map(key => {
+                const val = item[key]
+                const display = val === null || val === undefined ? '-' : typeof val === 'object' ? JSON.stringify(val) : String(val)
+                return <td key={key}>{display}</td>
+              })}
             </tr>
           ))}
         </tbody>
@@ -65,11 +74,11 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
     const date = new Date().toISOString().slice(0, 10)
     const tabTitles = { swimlane: 'Swim Lane 다이어그램', raci: 'RACI 매트릭스', decisions: '의사결정 포인트' }
     const processName = currentAnalysis.process_name || currentFileName || 'process'
-    
-    await downloadElementAsPPT(
+
+    await downloadElementAsPdfA3(
       vizDiagramRef.current,
       `${processName} — ${tabTitles[selectedTab] || ''}`.trim(),
-      `${selectedTab}_image_${date}.pptx`
+      `${selectedTab}_A3세로_${date}.pdf`
     )
   }
 
@@ -80,7 +89,7 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
     const processName = currentAnalysis.process_name || currentFileName || 'process'
 
     if (selectedTab === 'swimlane') {
-      await downloadSwimlanePPT(parse(currentAnalysis.swim_lanes), processName, `swimlane_${date}.pptx`)
+      await downloadSwimlanePPT(parse(currentAnalysis.swim_lanes), processName, `swimlane_A3가로_${date}.pptx`)
     } else if (selectedTab === 'raci') {
       await downloadRaciPPT(parse(currentAnalysis.raci), processName, `raci_${date}.pptx`)
     } else if (selectedTab === 'decisions') {
@@ -262,20 +271,20 @@ export function MultiFileAnalysis({ analyses, fileNames, chapterNames }) {
           </h3>
           <div className="download-buttons">
             {selectedTab === 'swimlane' && (
-              <button 
+              <button
                 className="btn-download-ppt-image"
                 onClick={handleDownloadImagePPT}
-                title="화면 이미지 그대로 PPT로 저장"
+                title="화면 이미지를 PDF A3 세로 형식으로 저장"
               >
-                🖼️ 이미지(PPT)저장
+                📄 PDF A3세로
               </button>
             )}
             <button
               className="btn-download-ppt"
               onClick={handleDownloadPPT}
-              title="현재 탭을 PowerPoint 파일로 저장"
+              title={selectedTab === 'swimlane' ? 'A3 가로 형식 스윔레인 PPT' : '현재 탭을 PowerPoint 파일로 저장'}
             >
-              🖼️ PPT 저장
+              {selectedTab === 'swimlane' ? '📐 A3가로 PPT' : '🖼️ PPT 저장'}
             </button>
             {(selectedTab === 'raci' || selectedTab === 'decisions') && (
               <button 
