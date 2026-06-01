@@ -102,7 +102,7 @@ export function SavedAnalysisList() {
 
   const fetchIntegrations = async () => {
     try {
-      const response = await fetch(`${BASE}/api/regulations/integration/list`)
+      const response = await fetch(`${BASE}/api/integration/list`)
       const data = await response.json()
       if (data.status === 'success') {
         setIntegrations(data.integrations)

@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # Gemini API 키 (없으면 None)
     GEMINI_API_KEY: Optional[str] = None
     
+    # Claude API 키 (없으면 None)
+    CLAUDE_API_KEY: Optional[str] = None
+    
     # JWT 및 보안 비밀키
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
@@ -26,6 +29,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = str(ENV_FILE_PATH)
         case_sensitive = False
+        extra = "ignore"
 
 # 설정을 캐싱하여 싱글톤 패턴으로 제공
 @lru_cache()
