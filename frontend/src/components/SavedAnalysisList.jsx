@@ -327,22 +327,6 @@ export function SavedAnalysisList() {
                       📋 상세보기
                     </button>
                     <button
-                      className="btn-download-word"
-                      onClick={() => {
-                        window.location.href = `${BASE}/api/download/integration/${integration.id}/word`
-                      }}
-                    >
-                      📄 Word
-                    </button>
-                    <button
-                      className="btn-download-excel"
-                      onClick={() => {
-                        window.location.href = `${BASE}/api/download/integration/${integration.id}/excel`
-                      }}
-                    >
-                      📊 Excel
-                    </button>
-                    <button
                       className="btn-delete"
                       onClick={() => handleDeleteIntegration(integration.id)}
                     >
